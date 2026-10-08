@@ -19,7 +19,7 @@ assert.equal(contributeToGoal(saved,'missing',1000,month),saved);
 for(const value of [-1,0,NaN,Infinity,0.001])assert.equal(contributeToGoal(saved,'bike',value,month),saved);
 const cents=contributeToGoal(saved,'bike',0.25,month);
 assert.equal(cents.goals[0].savedAmount,1000.25);
-const recurring={...spent,autoExpenses:[{id:'rent',name:'Rent',amount:10000,isActive:true}] as AutoExpense[]};
+const recurring={...spent,autoExpenses:[{id:'rent',description:'Rent',category:'Others',paymentType:'Cash',amount:10000,isActive:true}] as AutoExpense[]};
 assert.equal(financeSummary(recurring,month).balance,98500);
 assert.equal(financeSummary(recurring,month).availableBalance,88500);
 assert.equal(financeSummary(recurring,month).monthlySurplus,87500);

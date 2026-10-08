@@ -1,3 +1,4 @@
+import { localDate } from "@/utils/financeValidation";
 import { goalSavingsPlan } from '@/utils/financeSummary';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
