@@ -1,0 +1,78 @@
+name: Android 9 startup check
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/android-startup-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-startup-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Install and check
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/wealthtrack typecheck
+          pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
+      - name: Build release APK for 32-bit emulator
+        working-directory: artifacts/wealthtrack/android
+        run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Open release app on Android 9 with 1536 MB RAM
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 28
+          arch: x86
+          target: default
+          profile: Nexus 5
+          ram-size: 1536M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            mkdir -p startup-evidence
+            adb install -r artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
+            adb logcat -c
+            adb shell am start -W -n com.profinancer.app/.MainActivity
+            sleep 20
+            adb logcat -d > startup-evidence/logcat.txt
+            adb shell pidof com.profinancer.app > startup-evidence/pid.txt
+            adb shell uiautomator dump /sdcard/startup.xml
+            adb pull /sdcard/startup.xml startup-evidence/startup.xml
+            adb shell screencap -p /sdcard/startup.png
+            adb pull /sdcard/startup.png startup-evidence/startup.png
+            test -s startup-evidence/pid.txt
+            python -c "from pathlib import Path; log=Path('startup-evidence/logcat.txt').read_text(); assert 'FATAL EXCEPTION' not in log and 'JavascriptException' not in log, 'Startup crash found in logcat'; ui=Path('startup-evidence/startup.xml').read_text(); assert 'Get started' in ui or 'Welcome' in ui or 'Your Name' in ui or 'Next' in ui, 'Onboarding screen did not appear'"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-9-startup-evidence
+          path: startup-evidence/
+          if-no-files-found: ignore
