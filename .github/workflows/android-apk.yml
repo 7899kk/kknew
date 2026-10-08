@@ -1,30 +1,31 @@
-name: Build Android APK
+name: Build and test Galaxy J7 APK
 on:
   push:
     branches: [main]
     paths:
       - 'artifacts/wealthtrack/**'
+      - 'scripts/android-startup-smoke.sh'
+      - 'scripts/check-j7-apk.py'
+      - '.github/workflows/android-apk.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'package.json'
-
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+  EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 55
-    permissions:
-      contents: write
-    env:
-      CI: "1"
-      EXPO_NO_TELEMETRY: "1"
-      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,43 +41,114 @@ jobs:
           java-version: 17
       - uses: android-actions/setup-android@v3
         with:
-          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Check app and payment importer
+      - name: Install dependencies and run regressions
         run: |
+          pnpm install --frozen-lockfile
           pnpm --filter @workspace/wealthtrack typecheck
-          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/capturedPayments.test.ts
-          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/financeValidation.test.ts
-          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/billSettlements.test.ts
-          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/oauthCallback.test.ts
-          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/debitReasons.test.ts
-      - name: Generate Android project
-        run: pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
-      - name: Test native payment parser
+          for test in capturedPayments financeValidation billSettlements oauthCallback debitReasons; do
+            node --import ./scripts/node_modules/tsx/dist/loader.mjs "artifacts/wealthtrack/tests/${test}.test.ts"
+          done
+          pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
+      - name: Test parser and build standalone J7 APK
         working-directory: artifacts/wealthtrack/android
-        run: ./gradlew :money-notifications:testReleaseUnitTest --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
-      - name: Build standalone APK for old and new ARM phones
-        working-directory: artifacts/wealthtrack/android
-        run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
-      - name: Prepare download
+        run: ./gradlew :money-notifications:testReleaseUnitTest :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: Sign and verify for Android 7 through Android 9
         run: |
           mkdir -p apk-download
-          cp artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk apk-download/Pro-Financer.apk
-          sha256sum apk-download/Pro-Financer.apk > apk-download/SHA256SUMS.txt
+          signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          "$signer" sign --ks artifacts/wealthtrack/android/app/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled false --min-sdk-version 24 --out apk-download/Pro-Financer-J7.apk artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
+          "$signer" verify --verbose --print-certs --min-sdk-version 24 --max-sdk-version 28 apk-download/Pro-Financer-J7.apk > apk-download/SIGNATURE-VERIFICATION.txt
+          python scripts/check-j7-apk.py apk-download/Pro-Financer-J7.apk > apk-download/APK-VERIFICATION.json
+          sha256sum apk-download/Pro-Financer-J7.apk > apk-download/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Pro-Financer-Android-APK
+          name: Pro-Financer-J7-APK
           path: apk-download/
           retention-days: 30
           if-no-files-found: error
-      - name: Publish APK download
-        env:
-          GH_TOKEN: ${{ github.token }}
+  startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Install and generate Android project
         run: |
-          if ! gh release create "android-${GITHUB_RUN_NUMBER}" apk-download/Pro-Financer.apk apk-download/SHA256SUMS.txt --target "$GITHUB_SHA" --title "Pro Financer APK ${GITHUB_RUN_NUMBER}" --notes "Personal test build. Includes bundled app code for standalone use. Signed with the public Android test key; not a Play Store production release. Enable notification access and capture in Activity. Android 7 and later; actual device verification required." --prerelease --latest=false; then
-            echo "::warning::APK compilation and artifact upload succeeded, but GitHub blocked release publication. Download Pro-Financer-Android-APK from this run."
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
+      - name: Build release app for 32-bit runtime tests
+        working-directory: artifacts/wealthtrack/android
+        run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install, open and restart on Android 7
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 24
+          arch: x86
+          target: default
+          profile: Nexus 5
+          ram-size: 1536M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-startup-smoke.sh 24
+      - name: Install, open and restart on Android 9
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 28
+          arch: x86
+          target: default
+          profile: Nexus 5
+          ram-size: 1536M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-startup-smoke.sh 28
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-startup-evidence
+          path: startup-evidence/
+          if-no-files-found: ignore
+  publish:
+    needs: [apk, startup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Pro-Financer-J7-APK
+          path: apk-download
+      - name: Publish tested J7 APK
+        run: |
+          sha256sum -c apk-download/SHA256SUMS.txt
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+          if ! gh release view v1.1.3-j7 >/dev/null 2>&1; then
+            gh release create v1.1.3-j7 --target main --title "Pro Financer 1.1.3 for Galaxy J7" --notes "Smaller 32-bit ARM personal test APK. Unused camera, microphone, location, overlay, media-library and biometric permissions removed. Automatic capture still needs Android notification access, and Google Play Protect may restrict sideloaded notification-listener apps. Signature, parser and installation/startup checks are included; emulator checks are not a physical Samsung or Play Protect acceptance test." --prerelease --latest=false
           fi
+          gh release upload v1.1.3-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber

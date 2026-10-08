@@ -56,11 +56,7 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
   };
 
   const pickPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow access to your photo library.");
-      return;
-    }
+    // The system image picker grants access only to the image the user selects.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
