@@ -77,4 +77,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "android-${GITHUB_RUN_NUMBER}" apk-download/Pro-Financer.apk apk-download/SHA256SUMS.txt --target "$GITHUB_SHA" --title "Pro Financer APK ${GITHUB_RUN_NUMBER}" --notes "Personal test build. Includes bundled app code for standalone use. Signed with the public Android test key; not a Play Store production release. Enable notification access and capture in Activity. Android 7 and later; actual device verification required." --prerelease --latest=false
+          if ! gh release create "android-${GITHUB_RUN_NUMBER}" apk-download/Pro-Financer.apk apk-download/SHA256SUMS.txt --target "$GITHUB_SHA" --title "Pro Financer APK ${GITHUB_RUN_NUMBER}" --notes "Personal test build. Includes bundled app code for standalone use. Signed with the public Android test key; not a Play Store production release. Enable notification access and capture in Activity. Android 7 and later; actual device verification required." --prerelease --latest=false; then
+            echo "::warning::APK compilation and artifact upload succeeded, but GitHub blocked release publication. Download Pro-Financer-Android-APK from this run."
+          fi
