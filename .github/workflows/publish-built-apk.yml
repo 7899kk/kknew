@@ -1,14 +1,10 @@
 name: Publish completed APK
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/publish-built-apk.yml']
   workflow_dispatch:
     inputs:
       build_run_id:
         description: Successful APK compilation run containing Pro-Financer-Android-APK artifact
         required: true
-        default: '37592490196'
 permissions:
   contents: write
   actions: read
@@ -17,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      BUILD_RUN_ID: ${{ inputs.build_run_id || '37592490196' }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
