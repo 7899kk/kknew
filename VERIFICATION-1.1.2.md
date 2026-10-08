@@ -67,3 +67,9 @@ The downloaded artifact checksum matched GitHub's digest and the APK checksum ma
 - Three WAV sound files and their received/sent/review resource names are present.
 - Native notification listener is declared; READ_SMS, RECEIVE_SMS and READ_CONTACTS are absent from the actual APK manifest.
 - Phone UI, background delivery, audible sounds and live Supabase Google login remain untested. The APK has no Supabase URL/key configured, so it opens in local mode and Google login is disabled.
+
+## Direct GitHub APK download available
+
+The initial release-publication failure was resolved by [publishing run 37819675686](https://github.com/7899kk/kknew/actions/runs/37819675686). It verified the built source against current application files, downloaded the existing compiled artifact, checked its checksum and uploaded it to the v1.1.2 release.
+
+**[Download Pro-Financer.apk](https://github.com/7899kk/kknew/releases/download/v1.1.2/Pro-Financer.apk)**. GitHub reports the uploaded asset as 52,060,694 bytes with SHA-256 `59130aead2faae738cd9777e3a683afc19660892b16ff802ae8fbd4ad58cec21`, matching the verified local APK.
