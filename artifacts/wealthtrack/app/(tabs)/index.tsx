@@ -1,3 +1,4 @@
+import { goalSavingsPlan } from '@/utils/financeSummary';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -79,7 +80,7 @@ export default function DashboardScreen() {
 
   const topExpCategories = useMemo(() => {
     const map: Record<string, number> = {};
-    app.expenses.forEach((e) => { map[e.category] = (map[e.category] || 0) + e.amount; });
+    app.expenses.filter(e=>e.date.slice(0,7)===localDate().slice(0,7)).forEach((e) => { map[e.category] = (map[e.category] || 0) + e.amount; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [app.expenses]);
 
@@ -161,15 +162,15 @@ export default function DashboardScreen() {
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
                 <Feather name="trending-up" size={14} color="#ffffff80" />
                 <Text style={{ color: "#ffffff80", fontSize: 12, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" }}>
-                  Total Net Worth
+                  This month’s balance
                 </Text>
               </View>
               <AnimatedCounter
-                value={app.netWorth}
+                value={app.balance}
                 style={{ color: "#fff", fontSize: Math.min(screenW * 0.085, 36), fontWeight: "700", fontFamily: "Inter_700Bold" }}
               />
               <Text style={{ color: "#ffffff60", fontSize: 12, marginTop: 4 }}>
-                PRO FINANCIER · Personal Finance
+                Starting savings + monthly income − recorded expenses
               </Text>
             </View>
 
@@ -193,6 +194,11 @@ export default function DashboardScreen() {
         </Animated.View>
 
         <View style={{ paddingHorizontal: 16 }}>
+          <Card style={{marginBottom:16}}>
+            <Text style={{color:colors.foreground,fontWeight:'700'}}>Available to spend: {formatCurrencyFull(app.availableBalance)}</Text>
+            <Text style={{color:colors.mutedForeground,marginTop:6}}>Goal savings reserved: {formatCurrencyFull(app.goalSavings)} · Recurring bills planned: {formatCurrencyFull(app.totalAutoExpenses)}</Text>
+            <Text style={{color:colors.mutedForeground,marginTop:6}}>Entered monthly income is used until income is recorded for this month. This is your local budget, not a bank balance.</Text>
+          </Card>
           {/* ── Quick Stats ── */}
           <Animated.View
             style={{
@@ -219,8 +225,8 @@ export default function DashboardScreen() {
                 <PieChart
                   slices={financePieSlices}
                   thickness={38}
-                  centerLabel="Net Worth"
-                  centerValue={app.netWorth}
+                  centerLabel="Balance"
+                  centerValue={app.balance}
                 />
               </Card>
             </Animated.View>
@@ -252,6 +258,8 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 </View>
+                <Text style={{color:colors.foreground,marginBottom:10}}>Save {formatCurrencyFull(goalSavingsPlan(topGoal,app.monthlySurplus).remaining)} more for this dream.</Text>
+                <Text style={{color:colors.primary,marginBottom:10}}>Suggested saving: {formatCurrencyFull(goalSavingsPlan(topGoal,app.monthlySurplus).monthlyAmount)} per month.</Text>
                 <ProgressBar
                   progress={topGoal.targetAmount > 0 ? topGoal.savedAmount / topGoal.targetAmount : 0}
                   color={colors.primary}

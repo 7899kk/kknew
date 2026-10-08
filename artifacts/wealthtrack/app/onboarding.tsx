@@ -87,7 +87,7 @@ export default function OnboardingScreen() {
   const finish = () => {
     if (![monthly,other,savings].every(v=>validMoney(v,true,true)) || ![bikePrice,carPrice,flatPrice].every(v=>validMoney(v,false,true))) { Alert.alert("Check amounts", "Enter valid income/savings and positive goal prices."); return; }
     updateProfile({
-      name: name || "Friend",
+      name: name.trim() || "Friend",
       username: username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "") || name.toLowerCase().replace(/\s+/g, "_"),
       monthlySalary: parseFloat(monthly) || 0,
       yearlySalary: (parseFloat(monthly) || 0) * 12,
@@ -234,7 +234,7 @@ export default function OnboardingScreen() {
             <Input
               label="Username (optional)"
               value={username}
-              onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              onChangeText={setUsername}
               placeholder="e.g. rahul_sharma"
             />
           </>
@@ -349,9 +349,8 @@ export default function OnboardingScreen() {
         {step === 4 && (
           <View style={{ gap: 12 }}>
             {[
-              { icon: "bar-chart-2", label: "Dashboard & net worth" },
+              { icon: "bar-chart-2", label: "Income, savings & balance" },
               { icon: "credit-card", label: "Expense tracker" },
-              { icon: "trending-up", label: "Investment tracker" },
               { icon: "target", label: "Savings goals" },
               { icon: "users", label: "Bill splitter" },
             ].map((item) => (

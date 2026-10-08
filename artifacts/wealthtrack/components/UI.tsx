@@ -82,6 +82,8 @@ export function Button({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
       onPress={() => {
         if (!disabled && !loading) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -179,6 +181,13 @@ export function Input({
           </Text>
         )}
         <TextInput
+          accessibilityLabel={label || placeholder}
+          autoCorrect={false}
+          spellCheck={false}
+          autoComplete="off"
+          importantForAutofill="no"
+          textContentType="none"
+          autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}

@@ -1,4 +1,4 @@
-import { monthlyTotals } from "@/utils/financeValidation";
+import { financeSummary, contributeToGoal } from '@/utils/financeSummary';
 import { applyCapturedPayments, resolveCapturedPayment } from "@/utils/capturedPayments";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -187,6 +187,11 @@ interface AppContextType extends AppState {
   totalInvestments: number;
   totalDebt: number;
   netWorth: number;
+  balance: number;
+  availableBalance: number;
+  goalSavings: number;
+  monthlySurplus: number;
+  addGoalSavings: (id:string,amount:number) => void;
 }
 
 const defaultProfile: UserProfile = {
@@ -393,6 +398,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [update]
   );
 
+  const addGoalSavings = useCallback((id:string,amount:number)=>update(previous=>contributeToGoal(previous,id,amount)),[update]);
+
   const addGoal = useCallback(
     (goal: Omit<SavingsGoal, "id">) =>
       update((s) => ({ ...s, goals: [{ ...goal, id: genId() }, ...s.goals] })),
@@ -445,9 +452,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const month = new Date();
   const currentMonth = `${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,"0")}`;
   // Actual recorded income replaces the planned monthly salary; never add both and double-count salary.
-  const totals=monthlyTotals(currentMonth,state.profile.monthlySalary+state.profile.otherIncome,state.incomes,state.expenses);
-  const totalIncome=totals.income;
-  const totalExpenses=totals.expenses;
+  const summary=financeSummary(state,currentMonth);
+  const totalIncome=summary.income;
+  const totalExpenses=summary.expenses;
   const totalAutoExpenses = state.autoExpenses
     .filter((a) => a.isActive)
     .reduce((s, a) => s + a.amount, 0);
@@ -461,12 +468,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     .filter((d) => d.type === "debit" && d.status === "Pending")
     .reduce((s, d) => s + d.amount, 0);
 
-  const totalSavings =
-    state.profile.currentSavings +
-    state.goals.reduce((s, g) => s + g.savedAmount, 0);
+  const totalSavings = state.profile.currentSavings;
 
-  // Net Worth = Savings (bank + goal pots) + Investments - Debts
-  const netWorth = totalSavings + totalInvestments - totalDebt;
+  // Goal pots reserve existing money; they never create additional wealth.
+  const netWorth = summary.balance + totalInvestments - totalDebt;
 
   if (!loaded) return <View style={{flex:1,justifyContent:"center",padding:24}}><Text>{storageError || "Loading saved data…"}</Text></View>;
 
@@ -491,6 +496,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         totalInvestments,
         totalDebt,
         netWorth,
+        balance:summary.balance,availableBalance:summary.availableBalance,goalSavings:summary.goalSavings,monthlySurplus:summary.monthlySurplus,addGoalSavings,
       }}
     >
       {children}

@@ -1,3 +1,4 @@
+import { goalSavingsPlan } from "@/utils/financeSummary";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -59,9 +60,11 @@ function formatDateLabel(dateStr: string): string {
 export default function GoalsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { goals, addGoal, updateGoal, deleteGoal, profile, totalIncome } = useApp();
+  const { goals, addGoal, updateGoal, deleteGoal, addGoalSavings, monthlySurplus, availableBalance } = useApp();
 
   const [showModal, setShowModal] = useState(false);
+  const [fundingGoal, setFundingGoal] = useState<SavingsGoal | null>(null);
+  const [fundingAmount, setFundingAmount] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
 
@@ -101,6 +104,10 @@ export default function GoalsScreen() {
 
   const save = () => {
     if (!name.trim() || !validMoney(targetAmount) || !validMoney(savedAmount,true,true) || !validDate(targetDate,true)) { Alert.alert("Check goal", "Enter a name, positive target, non-negative savings and valid date."); return; }
+    const saved = Number(savedAmount) || 0;
+    const oldSaved = goals.find(g => g.id === editingId)?.savedAmount || 0;
+    if (saved > Number(targetAmount)) { Alert.alert("Check savings", "Saved money cannot exceed the goal target."); return; }
+    if (saved - oldSaved > Math.max(0, availableBalance)) { Alert.alert("Not enough available money", "Reduce the saved amount or update your income and starting savings."); return; }
     const data = {
       name: name.trim(),
       description: description.trim() || undefined,
@@ -130,32 +137,25 @@ export default function GoalsScreen() {
   };
 
   const addToSavings = (goal: SavingsGoal, amount: number) => {
-    updateGoal(goal.id, { savedAmount: goal.savedAmount + amount });
+    const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
+    if (amount > remaining || amount > Math.max(0, availableBalance)) {
+      Alert.alert("Check savings", `You can reserve up to ${formatCurrency(Math.min(remaining, Math.max(0, availableBalance)))} for this goal.`);
+      return;
+    }
+    addGoalSavings(goal.id, amount);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  // Monthly saving needed given target date and current saved
   const monthlyNeeded = (goal: SavingsGoal): string | null => {
-    if (!goal.targetDate) return null;
-    const days = daysUntil(goal.targetDate);
-    if (days === null || days <= 0) return null;
-    const remaining = goal.targetAmount - goal.savedAmount;
-    if (remaining <= 0) return null;
-    const months = Math.max(days / 30, 0.5);
-    const monthly = remaining / months;
-    return formatCurrency(Math.ceil(monthly));
+    const plan = goalSavingsPlan(goal, monthlySurplus);
+    return plan.monthlyAmount > 0 ? formatCurrency(plan.monthlyAmount) : null;
   };
 
-  // Estimate months at 20% savings rate fallback
-  const monthlySavingsRate = totalIncome > 0 ? totalIncome * 0.2 : 0;
   const estimateMonths = (goal: SavingsGoal): string => {
-    const remaining = goal.targetAmount - goal.savedAmount;
-    if (remaining <= 0) return "Goal reached! 🎉";
-    if (monthlySavingsRate <= 0) return "Add income to estimate";
-    const months = Math.ceil(remaining / monthlySavingsRate);
-    if (months > 120) return `~${Math.ceil(months / 12)} years`;
-    if (months > 12) return `~${Math.ceil(months / 12)}y ${months % 12}m`;
-    return `~${months} months`;
+    const plan = goalSavingsPlan(goal, monthlySurplus);
+    if (plan.remaining <= 0) return "Goal reached! 🎉";
+    if (plan.monthlyAmount <= 0) return "No monthly surplus yet. Reduce expenses or add income.";
+    return `About ${Math.ceil(plan.remaining / plan.monthlyAmount)} months at this saving rate`;
   };
 
   const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
@@ -333,11 +333,11 @@ export default function GoalsScreen() {
                   ) : (
                     <>
                       <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
-                        {formatCurrency(remaining)} remaining
+                        Save {formatCurrency(Math.max(0, remaining))} more for this dream
                       </Text>
                       {monthly ? (
                         <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600", marginTop: 2 }}>
-                          {monthly}/month needed
+                          {monthly}/month {item.targetDate ? "needed" : "suggested"}
                         </Text>
                       ) : (
                         <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
@@ -359,12 +359,15 @@ export default function GoalsScreen() {
                 </Text>
               </View>
 
+              {!reached && <Text style={{fontSize:12,color:colors.mutedForeground,marginTop:8}}>{estimateMonths(item)}. Savings are reserved from available money.</Text>}
+              {!reached && item.targetDate && !goalSavingsPlan(item, monthlySurplus).affordable && <Text style={{fontSize:12,color:colors.expense,marginTop:4}}>This deadline needs more than your monthly surplus. Extend it or reduce expenses.</Text>}
               {/* Quick add buttons */}
               {!reached && (
                 <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-                  {[1000, 5000, 10000].map((amt) => (
+                  {Array.from(new Set([Math.min(1000, Math.max(0, remaining)), 5000, 10000])).filter(amt => amt > 0).map((amt) => (
                     <Pressable
                       key={amt}
+                      accessibilityLabel={`Save ${amt} toward ${item.name}`}
                       onPress={() => addToSavings(item, amt)}
                       style={{
                         flex: 1,
@@ -383,6 +386,7 @@ export default function GoalsScreen() {
                   ))}
                 </View>
               )}
+              {!reached && <Button title="Add savings amount" variant="secondary" onPress={() => {setFundingGoal(item);setFundingAmount("");}} style={{marginTop:10}} />}
             </Card>
           );
         }}
@@ -390,6 +394,7 @@ export default function GoalsScreen() {
 
       {/* FAB */}
       <Pressable
+        accessibilityLabel="Add goal"
         onPress={openAdd}
         style={{
           position: "absolute",
@@ -411,6 +416,22 @@ export default function GoalsScreen() {
         <Feather name="plus" size={24} color="#fff" />
       </Pressable>
 
+      <Modal visible={!!fundingGoal} transparent animationType="fade" onRequestClose={() => setFundingGoal(null)}>
+        <View style={{flex:1,justifyContent:"center",padding:24,backgroundColor:"#00000088"}}>
+          <Card>
+            <Text style={{color:colors.foreground,fontSize:18,fontWeight:"700",marginBottom:12}}>Save toward {fundingGoal?.name}</Text>
+            <Text style={{color:colors.mutedForeground,marginBottom:12}}>Available to reserve: {formatCurrency(Math.max(0,availableBalance))}</Text>
+            <Input label="Savings amount" value={fundingAmount} onChangeText={setFundingAmount} keyboardType="decimal-pad" prefix="₹" />
+            <Button title="Reserve savings" onPress={() => {
+              if (!fundingGoal || !validMoney(fundingAmount)) {Alert.alert("Check amount","Enter a positive amount with up to two decimal places.");return;}
+              const amount=Number(fundingAmount);
+              if(amount>Math.max(0,availableBalance) || amount>fundingGoal.targetAmount-fundingGoal.savedAmount) {Alert.alert("Check amount","Amount exceeds the money available or the goal remaining.");return;}
+              addToSavings(fundingGoal,amount);setFundingGoal(null);
+            }} />
+            <Button title="Cancel" variant="ghost" onPress={() => setFundingGoal(null)} style={{marginTop:8}} />
+          </Card>
+        </View>
+      </Modal>
       {/* Add / Edit Modal */}
       <Modal
         visible={showModal}

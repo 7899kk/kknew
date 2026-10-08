@@ -117,7 +117,8 @@ export default function ExpensesScreen() {
       category,
       amount: Number(amount),
       paymentType,
-      notes: notes || undefined,
+      notes: notes.trim() || undefined,
+      ...(notes.trim()?{needsReason:false}:{}),
       merchant: merchant || undefined,
       upiRef: upiRef || undefined,
     };
@@ -348,6 +349,7 @@ export default function ExpensesScreen() {
 
       {/* Add Expense FAB */}
       <Pressable
+        accessibilityLabel="Add expense"
         onPress={openAdd}
         style={{
           position: "absolute",

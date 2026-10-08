@@ -45,7 +45,7 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
     if (![monthly,other,savings].every(v=>validMoney(v,true,true))) { Alert.alert("Check amounts", "Income and savings must be valid non-negative amounts."); return; }
     app.updateProfile({
       name: name.trim() || app.profile.name,
-      username: username.trim().toLowerCase().replace(/\s+/g, "_"),
+      username: username.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""),
       monthlySalary: parseFloat(monthly) || 0,
       yearlySalary: (parseFloat(monthly) || 0) * 12,
       otherIncome: parseFloat(other) || 0,
@@ -407,7 +407,7 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
             <Input
               label="Username"
               value={username}
-              onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              onChangeText={setUsername}
               placeholder="e.g. rahul_sharma"
             />
             <Input
