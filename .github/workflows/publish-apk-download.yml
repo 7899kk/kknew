@@ -1,0 +1,38 @@
+name: Publish verified APK download
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-apk-download.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: '37814780223'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify APK compilation and source
+        run: |
+          result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}/jobs" --jq '.jobs[].steps[] | select(.name == "Build standalone APK for old and new ARM phones") | .conclusion')
+          test "$result" = success
+          source_commit=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}" --jq .head_sha)
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${source_commit}...${GITHUB_SHA}" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+      - uses: actions/download-artifact@v4
+        with:
+          name: Pro-Financer-Android-APK
+          path: apk-download
+          run-id: ${{ env.BUILD_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Verify checksum and publish APK
+        run: |
+          sha256sum -c apk-download/SHA256SUMS.txt
+          if ! gh release view v1.1.2 >/dev/null 2>&1; then
+            gh release create v1.1.2 --target main --title "Pro Financer 1.1.2" --notes "Verified standalone Android APK. Includes automatic payment capture, editable income names, debit reason prompts, separate payment sounds and the original logo. Enable notification access and capture in Activity. Google login requires Supabase configuration. Personal test build; physical-phone testing remains required." --prerelease --latest=false
+          fi
+          gh release upload v1.1.2 apk-download/Pro-Financer.apk apk-download/SHA256SUMS.txt --clobber
