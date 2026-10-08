@@ -23,10 +23,24 @@ def save(name):
     adb('pull',f'/sdcard/{name}.png',str(evidence/f'{name}.png'))
 
 def match(root,label,edit=False):
-    return [node for node in root.iter('node') if
-        (node.get('content-desc')==label or node.get('text')==label or
-         (not edit and node.get('content-desc','').startswith(label+', tab'))) and
-        (not edit or node.get('class')=='android.widget.EditText')]
+    parents={child:parent for parent in root.iter() for child in parent}
+    matches=[]
+    for node in root.iter('node'):
+        if not (node.get('content-desc')==label or node.get('text')==label or
+                (not edit and node.get('content-desc','').startswith(label+', tab'))):
+            continue
+        if edit:
+            if node.get('class')!='android.widget.EditText':continue
+        else:
+            # A screen heading can have the same text as its submit button.
+            # Only act on an actual clickable control, never the heading.
+            while node is not None and node.get('clickable')!='true':
+                node=parents.get(node)
+            if node is None:continue
+        bounds=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
+        if len(bounds)==4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
+            matches.append(node)
+    return matches
 
 def find(label,edit=False):
     for attempt in range(9):

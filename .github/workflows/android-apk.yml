@@ -110,6 +110,12 @@ jobs:
       - name: Build release app for 32-bit runtime tests
         working-directory: artifacts/wealthtrack/android
         run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: J7-x86-runtime
+          path: artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
+          if-no-files-found: error
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
