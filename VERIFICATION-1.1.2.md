@@ -52,3 +52,18 @@ No Supabase project or Google credentials were provisioned in this workspace. Co
 10. Reset disposable test data and confirm capture is disabled.
 
 Capture reads future supported notifications, not bank accounts. Cash, historical alerts and unsupported formats cannot be captured. Device battery restrictions/force-stop can stop listeners, and Android controls sound and heads-up display. Physical-phone tests are required before claiming every feature works.
+
+## Compiled APK verified on 8 October 2026
+
+[Android build 37814780223](https://github.com/7899kk/kknew/actions/runs/37814780223) passed mobile typechecking, all five TypeScript test files, Kotlin parser tests and full release APK compilation. The final release-publication step failed with HTTP 403, Resource not accessible by integration. This is a GitHub publishing permission failure; compilation and tests succeeded.
+
+[Download the compiled APK artifact ZIP](https://github.com/7899kk/kknew/actions/runs/37814780223/artifacts/11567631903), extract it and install Pro-Financer.apk. The artifact expires on 7 November 2026.
+
+The downloaded artifact checksum matched GitHub's digest and the APK checksum matched SHA256SUMS.txt:
+
+- APK SHA-256: `59130aead2faae738cd9777e3a683afc19660892b16ff802ae8fbd4ad58cec21`.
+- Package: `com.profinancer.app`; version 1.1.2; version code 4; minimum SDK 24; target SDK 36.
+- ARM 32-bit and ARM 64-bit libraries and bundled JavaScript are present.
+- Three WAV sound files and their received/sent/review resource names are present.
+- Native notification listener is declared; READ_SMS, RECEIVE_SMS and READ_CONTACTS are absent from the actual APK manifest.
+- Phone UI, background delivery, audible sounds and live Supabase Google login remain untested. The APK has no Supabase URL/key configured, so it opens in local mode and Google login is disabled.
