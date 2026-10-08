@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import { applyCapturedPayments, resolveCapturedPayment } from '../utils/capturedPayments';
+import { debitReasonDetails, pendingDebitReasons } from '../utils/debitReasons';
+import type { Expense, IncomeEntry, PaymentReview } from '../context/AppContext';
+import type { CapturedPayment } from '../utils/paymentModels';
+
+const empty = { expenses:[] as Expense[], incomes:[] as IncomeEntry[], paymentReviews:[] as PaymentReview[], capturedIds:[] as string[] };
+const debit:CapturedPayment={id:'reason-debit',amount:250.50,kind:'expense',source:'com.phonepe.app',timestamp:Date.now(),reference:'123456789012'};
+const imported=applyCapturedPayments(empty,[debit,debit]);
+assert.equal(imported.expenses.length,1);
+assert.equal(pendingDebitReasons(imported.expenses).length,1);
+// Deferring and restarting retain the prompt without creating another debit.
+const restored=JSON.parse(JSON.stringify(imported));
+assert.equal(pendingDebitReasons(restored.expenses).length,1);
+assert.equal(applyCapturedPayments(restored,[debit]),restored);
+const details=debitReasonDetails(' Groceries ','Food');
+assert(details);
+const named={...imported,expenses:imported.expenses.map(e=>({...e,...details}))};
+assert.equal(pendingDebitReasons(named.expenses).length,0);
+assert.equal(named.expenses[0].notes,'Groceries');
+assert.equal(named.expenses[0].amount,250.50);
+assert.equal(named.expenses[0].upiRef,debit.reference);
+assert.equal(named.expenses[0].captureId,debit.id);
+assert.equal(applyCapturedPayments(named,[debit]),named);
+assert.equal(JSON.parse(JSON.stringify(named)).expenses[0].needsReason,false);
+assert.equal(pendingDebitReasons([]).length,0);
+assert.equal(pendingDebitReasons([{...imported.expenses[0],needsReason:undefined}]).length,0);
+assert.equal(pendingDebitReasons([{...imported.expenses[0],captureId:undefined}]).length,0);
+assert.equal(debitReasonDetails('   ','Others'),null);
+assert.equal(debitReasonDetails('x'.repeat(201),'Others'),null);
+const review=applyCapturedPayments(empty,[{...debit,kind:'review'}]);
+assert.equal(pendingDebitReasons(review.expenses).length,0);
+const confirmed=resolveCapturedPayment(review,debit.id,'expense');
+assert.equal(pendingDebitReasons(confirmed.expenses).length,1);
+console.log('Debit reason checks passed: replay, restart, deferred naming, unchanged amount/reference, one entry, legacy data and review confirmation.');

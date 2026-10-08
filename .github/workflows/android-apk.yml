@@ -1,0 +1,80 @@
+name: Build Android APK
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/wealthtrack/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+          log-accepted-android-sdk-licenses: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check app and payment importer
+        run: |
+          pnpm --filter @workspace/wealthtrack typecheck
+          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/capturedPayments.test.ts
+          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/financeValidation.test.ts
+          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/billSettlements.test.ts
+          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/oauthCallback.test.ts
+          node --import ./scripts/node_modules/tsx/dist/loader.mjs artifacts/wealthtrack/tests/debitReasons.test.ts
+      - name: Generate Android project
+        run: pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
+      - name: Test native payment parser
+        working-directory: artifacts/wealthtrack/android
+        run: ./gradlew :money-notifications:testReleaseUnitTest --no-daemon -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: Build standalone APK for old and new ARM phones
+        working-directory: artifacts/wealthtrack/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: Prepare download
+        run: |
+          mkdir -p apk-download
+          cp artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk apk-download/Pro-Financer.apk
+          sha256sum apk-download/Pro-Financer.apk > apk-download/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pro-Financer-Android-APK
+          path: apk-download/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-${GITHUB_RUN_NUMBER}" apk-download/Pro-Financer.apk apk-download/SHA256SUMS.txt --target "$GITHUB_SHA" --title "Pro Financer APK ${GITHUB_RUN_NUMBER}" --notes "Personal test build. Includes bundled app code for standalone use. Signed with the public Android test key; not a Play Store production release. Enable notification access and capture in Activity. Android 7 and later; actual device verification required." --prerelease --latest=false

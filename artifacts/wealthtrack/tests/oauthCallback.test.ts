@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { parseOAuthCallback } from '../utils/oauthCallback';
+assert.deepEqual(parseOAuthCallback('profinancer://auth-callback?code=abc&sb_flow_id=flow-1'),{code:'abc',flowId:'flow-1'});
+assert.deepEqual(parseOAuthCallback('profinancer://auth-callback?code=abc'),{code:'abc',flowId:undefined});
+assert.deepEqual(parseOAuthCallback('https://example.com/auth-callback#code=abc'),{code:'abc',flowId:undefined});
+assert.throws(()=>parseOAuthCallback('profinancer://auth-callback?error=access_denied&error_description=User%20cancelled'),/User cancelled/);
+assert.throws(()=>parseOAuthCallback('profinancer://auth-callback#error=access_denied&error_description=User%20cancelled'),/User cancelled/);
+assert.throws(()=>parseOAuthCallback('profinancer://auth-callback'),/did not return a login code/);
+assert.throws(()=>parseOAuthCallback('invalid-url'),TypeError);
+console.log('OAuth callback checks passed: query/fragment errors, cancellation, PKCE flow ID, missing code and malformed URL. Live Google login still needs configuration.');

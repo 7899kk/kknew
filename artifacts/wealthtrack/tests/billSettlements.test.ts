@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { calculateSettlements } from '../utils/billSettlements';
+import type { BillGroup } from '../context/AppContext';
+const group:BillGroup={id:'g',name:'Friends',members:['A','B'],createdAt:'',expenses:[{id:'e',description:'Tea',amount:0.02,paidBy:'A',splitAmong:['A','B'],date:'2026-10-07'}]};
+assert.deepEqual(calculateSettlements(group),[{from:'B',to:'A',amount:0.01}]);
+assert.deepEqual(calculateSettlements({...group,expenses:[{...group.expenses[0],amount:200}]}),[{from:'B',to:'A',amount:100}]);
+assert.deepEqual(calculateSettlements({...group,expenses:[{...group.expenses[0],amount:100,splitAmong:['B']}]}),[{from:'B',to:'A',amount:100}]);
+assert.deepEqual(calculateSettlements({...group,expenses:[{...group.expenses[0],amount:100,splitAmong:['A','B','B']}]}),[{from:'B',to:'A',amount:50}]);
+for(const bad of [{splitAmong:[]},{splitAmong:['Unknown']},{paidBy:'Unknown'},{amount:NaN},{amount:-1}])assert.deepEqual(calculateSettlements({...group,expenses:[{...group.expenses[0],...bad}]}),[]);
+assert.deepEqual(calculateSettlements({...group,expenses:[{...group.expenses[0],amount:200},{...group.expenses[0],id:'e2',amount:200,paidBy:'B'}]}),[]);
+const three={...group,members:['A','B','C'],expenses:[{...group.expenses[0],amount:100,splitAmong:['A','B','C']}]};
+assert.deepEqual(calculateSettlements(three),[{from:'B',to:'A',amount:33.33},{from:'C',to:'A',amount:33.33}]);
+console.log('Bill settlement checks passed: one-paisa debts, equal/subset splits, remainder rounding, offsets, invalid data and duplicate participants.');
