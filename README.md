@@ -6,7 +6,7 @@ Expo / React Native app with local finance records, Activity and Android payment
 
 Version 1.1.2 adds a debit reason sheet and Activity reminders. Download Pro-Financer.apk from the newest successful release below. See [current verification](VERIFICATION-1.1.2.md) for checks and phone tests.
 
-Open [Releases](../../releases) and download **Pro-Financer.apk** from the newest successful Android build. A source ZIP is not an APK. The first build must finish successfully before a download exists. Build progress and logs are in [Actions](../../actions/workflows/android-apk.yml).
+The current version 1.1.2 APK compiled and passed all build checks. [Download the verified APK ZIP](https://github.com/7899kk/kknew/actions/runs/37814780223/artifacts/11567631903), extract it, and install **Pro-Financer.apk**. Release upload was blocked by GitHub permission error 403; the build artifact is available until 7 November 2026. Future builds also upload an APK artifact, and publish to [Releases](../../releases) when GitHub allows it. A source ZIP is not an APK. The first build must finish successfully before a download exists. Build progress and logs are in [Actions](../../actions/workflows/android-apk.yml).
 
 The workflow builds a standalone release-mode APK with bundled JavaScript, supporting ARM 32-bit and ARM 64-bit phones. It uses the public Android test signing key, for personal testing only. Android 7/API 24 or later is required; Samsung J7 Nxt Android 9 still needs installation and real notification tests. Keep a private production signing key before Play Store release. Notifications require explicit device permissions.
 
@@ -17,8 +17,8 @@ The workflow builds a standalone release-mode APK with bundled JavaScript, suppo
 3. Enable Capture new payments, then allow app notifications if needed.
 4. New supported payment alerts with clear debit/credit, amount and transaction reference are captured once.
 5. Received money appears as **Money received / Uncategorized**, and already counts in totals. Tap **Name income / Edit** to choose Salary, Business, Gift, Refund or Other and enter your own name.
-7. Captured debits already count in expenses. A small Money debited sheet asks for a reason and category while the app is open. Choose Later to keep an Activity reminder, or Save reason to update the same entry without counting it twice. With the app closed, tap the Android debit notification to open the app and enter a reason.
-6. Tap a payment notification to open Activity. Unclear amounts, possible transfers and refunds require review before entering totals. Failed payments, OTPs and promotional alerts are ignored.
+6. Captured debits already count in expenses. A small Money debited sheet asks for a reason and category while the app is open. Choose Later to keep an Activity reminder, or Save reason to update the same entry without counting it twice. With the app closed, tap the Android debit notification to open the app and enter a reason.
+7. Tap a payment notification to open Activity. Unclear amounts, possible transfers and refunds require review before entering totals. Failed payments, OTPs and promotional alerts are ignored.
 
 Capture reads future notifications from supported sources, not bank accounts. It cannot detect cash, recover old alerts, or guarantee every bank format. Force-stop, battery limits and low-RAM restrictions can stop Android notification listeners. Compare with your statement. Raw notification text is not stored or uploaded. Stored payment metadata and finance entries stay on the phone; uninstalling can erase them.
 
