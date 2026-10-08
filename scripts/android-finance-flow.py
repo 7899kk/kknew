@@ -11,11 +11,21 @@ evidence=Path(sys.argv[1]); evidence.mkdir(parents=True,exist_ok=True)
 def adb(*args):
     return subprocess.check_output(['adb',*args],text=True)
 
-def ui():
+def ui(attempt=0):
     adb('shell','uiautomator','dump','/sdcard/flow.xml')
     value=adb('shell','cat','/sdcard/flow.xml')
     (evidence/'flow-latest.xml').write_text(value)
-    return ET.fromstring(value)
+    root=ET.fromstring(value)
+    # The stock Android 7 emulator keyboard requests contacts on first use.
+    # Deny its request; no app or keyboard contact access is needed for this test.
+    if attempt < 3 and 'Android Keyboard (AOSP)' in value:
+        deny=next((n for n in root.iter('node') if n.get('text')=='DENY'),None)
+        if deny is not None:
+            x1,y1,x2,y2=map(int,re.findall(r'\d+',deny.get('bounds')))
+            adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+            time.sleep(.8)
+            return ui(attempt+1)
+    return root
 
 def save(name):
     (evidence/f'{name}.xml').write_text(ET.tostring(ui(),encoding='unicode'))
@@ -60,6 +70,7 @@ def tap(label,edit=False):
 
 def enter(label,value):
     tap(label,True)
+    ui()  # dismiss any stock-keyboard setup prompt before sending text
     adb('shell','input','text',value)
     time.sleep(.5)
     node=find(label,True)
