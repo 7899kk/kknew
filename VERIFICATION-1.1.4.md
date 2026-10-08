@@ -1,4 +1,4 @@
-# Pro Financer 1.1.3: dashboard and Galaxy J7 rebuild
+# Pro Financer 1.1.4: dashboard and Galaxy J7 rebuild
 
 ## Changes
 
@@ -14,9 +14,13 @@
 
 Six TypeScript regression suites cover payment import/deduplication, debit reasons, finance validation, dashboard/goals, bill settlement and OAuth callbacks. Native Kotlin parser tests run during the ARM build. The release-screen test installs a separate 32-bit x86 release build on Android 7 and 9 emulators with 1536 MB RAM, checks name/username entry, salary plus savings, expense deduction, dream reservation and persistence after restart. APK archive integrity, manifest permissions, ABI, signing and SHA-256 are checked before publication.
 
-The ARM APK build, native parser tests, TypeScript checks, six regression suites and APK manifest/signature checks passed in run `37825873382`. The APK is 32,246,769 bytes; SHA-256 `4b946d970069c3c0ec5d39d9de8991795b2aed871885b02a220a69deb5f8d43e`. The APK manifest requests only internet/network state, notifications, vibration and the app-specific protected dynamic-receiver permission. Notification-listener access remains on its service. Both Android 7 and Android 9 full finance-screen checks passed in [recheck run 37828483904](https://github.com/7899kk/kknew/actions/runs/37828483904), including name/username entry, ₹1,01,000 starting balance, ₹98,500 after an expense, ₹97,500 available after reserving goal savings and data persistence after restart. The recheck corrected test navigation around the stock emulator keyboard; it verified that application source was unchanged before reusing the compiled binaries.
+The equivalent finance implementation in 1.1.3 passed six TypeScript suites, native parser tests, APK checks and full Android 7/9 release-screen flows. Version 1.1.4 adds safe-area spacing to prevent bottom tabs overlapping Android on-screen navigation buttons. This was found during screenshot review; Samsung models using hardware navigation keys are unaffected by that overlap.
 
-Current check results and screenshots are in the [build workflow](https://github.com/7899kk/kknew/actions/workflows/android-apk.yml). The recheck workflow reuses the compiled ARM/x86 binaries after verifying application source is unchanged. Publication is gated on the successful ARM APK job and both Android screen checks. The original full build run ended at UI automation because the software keyboard covered the next field; its ARM build job passed. The corrected recheck validates the same application binaries, rather than treating that automation failure as an app crash. Pending or failing checks do not mean an APK is verified.
+Version 1.1.4 passed **all three jobs** in [run 37829823948](https://github.com/7899kk/kknew/actions/runs/37829823948): ARM build/verification, Android 7/9 screen tests, and release publication. TypeScript and all six regression suites passed; native parser tests passed during compilation. The screen tests verified name and username entry once, ₹1,01,000 initial balance, ₹98,500 after a ₹2,500 expense, ₹97,500 available after reserving ₹1,000 for a dream, and persistence after restart. Saved XML and screenshots were inspected; final tab controls sit above Android navigation buttons.
+
+**[Download Pro-Financer-J7.apk](https://github.com/7899kk/kknew/releases/download/v1.1.4-j7/Pro-Financer-J7.apk)**. Version 1.1.4/code 6; package `com.profinancer.app`; minimum Android 7/API 24; 32-bit ARM only; 32,246,769 bytes. SHA-256 `a3a1f53b1302e3567ccb1633cd034abd8f32129f712456baa6f2303d7708cf96`. The GitHub release asset digest matches the downloaded, inspected build. Signing, checksum and manifest reports are attached to the release.
+
+The APK requests only internet/network state, notifications, vibration and the app-specific protected dynamic-receiver permission. Its notification listener remains present. A legacy v1 signature is included and its v2 signature verifies for Android 7–9. It contains the standalone JavaScript bundle and all three payment sounds.
 
 ## Real-world boundaries
 

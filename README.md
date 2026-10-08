@@ -4,11 +4,17 @@ Expo / React Native app with local finance records, Activity and Android payment
 
 ## Download the Android APK
 
-Version 1.1.2 adds a debit reason sheet and Activity reminders. Download Pro-Financer.apk from the newest successful release below. See [current verification](VERIFICATION-1.1.2.md) for checks and phone tests.
+Version 1.1.4 fixes the dashboard balance, expense deductions, goal reservations and Android text-input behavior, and prevents tabs overlapping Android navigation buttons. **[Download Pro-Financer-J7.apk](https://github.com/7899kk/kknew/releases/download/v1.1.4-j7/Pro-Financer-J7.apk)** or open the [J7 release](https://github.com/7899kk/kknew/releases/tag/v1.1.4-j7).
 
-The current version 1.1.2 APK compiled and passed all build checks. **[Download Pro-Financer.apk directly](https://github.com/7899kk/kknew/releases/download/v1.1.2/Pro-Financer.apk)** or open the [version 1.1.2 release](https://github.com/7899kk/kknew/releases/tag/v1.1.2). The uploaded APK checksum matches the verified build. Future builds also upload an APK artifact and attempt release publication. A source ZIP is not an APK. The first build must finish successfully before a download exists. Build progress and logs are in [Actions](../../actions/workflows/android-apk.yml).
+The APK is 32,246,769 bytes and includes bundled JavaScript and 32-bit ARM native libraries. Android 7/API 24 or later is required. It uses the public Android test signing key for personal testing. The v2 signature is verified for Android 7–9 and a legacy v1 signature is included. [Android 7 and 9 screen tests passed](https://github.com/7899kk/kknew/actions/runs/37829823948) on 1536 MB x86 emulators using an equivalent release build; physical Samsung and Play Protect acceptance still need device testing. [Read the verification report](VERIFICATION-1.1.4.md).
 
-The workflow builds a standalone release-mode APK with bundled JavaScript, supporting ARM 32-bit and ARM 64-bit phones. It uses the public Android test signing key, for personal testing only. Android 7/API 24 or later is required; Samsung J7 Nxt Android 9 still needs installation and real notification tests. Keep a private production signing key before Play Store release. Notifications require explicit device permissions.
+Google Play Protect can restrict sideloaded apps requesting notification access. Automatic payment capture needs that access; this rebuild removes unrelated sensitive permissions but cannot guarantee acceptance or replace a Google review. Do not bypass a security block.
+
+## Dashboard and dreams
+
+Starting savings + monthly income − this month's recorded expenses gives the dashboard balance. Salary ₹1,00,000 plus ₹1,000 starting savings shows ₹1,01,000; a ₹2,500 expense reduces it to ₹98,500. Recorded income replaces the planned income estimate for that month, avoiding duplicated salary. This is a monthly local budget, not a bank-account balance.
+
+Goal contributions reserve money from the available budget. They do not create extra wealth or expense. Available spending money subtracts goal reserves and planned recurring bills. Dreams show the remaining amount and a saving suggestion based on surplus after expenses. You can reserve a custom amount; contributions cannot exceed the remaining target or available budget.
 
 ## Automatic money capture
 
@@ -57,7 +63,7 @@ Received and sent payments have distinct bundled sounds. New high-importance cha
 
 ## Build verification
 
-The Galaxy J7 rebuild is version 1.1.3. Its download is published only after the build and Android screen tests pass: [J7 release](https://github.com/7899kk/kknew/releases/tag/v1.1.3-j7). [Follow the build](https://github.com/7899kk/kknew/actions/workflows/android-apk.yml). Version 1.1.2 remains available as an older build.
+The Galaxy J7 rebuild is version 1.1.3. Its download is published only after the build and Android screen tests pass: [J7 release](https://github.com/7899kk/kknew/releases/tag/v1.1.4-j7). [Follow the build](https://github.com/7899kk/kknew/actions/workflows/android-apk.yml). Version 1.1.2 remains available as an older build.
 
 The J7 APK contains bundled JavaScript and 32-bit ARM libraries, requires Android 7/API 24 or later, and uses the public Android test signing key for personal testing. The workflow verifies signing for Android 7–9 and exercises an equivalent 32-bit x86 release on low-memory Android 7 and 9 emulators. Physical Samsung and Play Protect acceptance still require device testing.
 
@@ -116,8 +122,8 @@ Received and sent payments have distinct bundled sounds. New high-importance cha
 
 ## Build verification
 
-The standalone Android APK compiled successfully in GitHub Actions on 7 October 2026. TypeScript, payment importer, finance-validation checks and Android native compilation passed. The pure Kotlin parser passed 24 cases locally. Actual phone notification delivery, sound playback and live Google login remain untested. Google login is disabled until Supabase is configured.
+Version 1.1.4 compiled successfully and passed all jobs in [run 37829823948](https://github.com/7899kk/kknew/actions/runs/37829823948) on 8 October 2026. TypeScript, six regression suites, native parser, APK manifest/signature checks and Android 7/9 release-screen tests passed. The published APK SHA-256 is `a3a1f53b1302e3567ccb1633cd034abd8f32129f712456baa6f2303d7708cf96`. Final screenshots show tab controls above the Android navigation bar. Physical phone installation, Samsung keyboard behavior, real payment delivery/sounds and live Google login remain unverified. Google login is disabled until Supabase is configured.
 
 ## Specification review and regression tests
 
-See [VERIFICATION-1.1.3.md](VERIFICATION-1.1.3.md) for current implementation and checks, and [VERIFICATION-1.1.2.md](VERIFICATION-1.1.2.md) for the earlier phone test sequence. [TEST-REPORT.md](TEST-REPORT.md) records earlier version 1.1.1 results. Download the newest successful APK from Releases to receive these fixes.
+See [VERIFICATION-1.1.4.md](VERIFICATION-1.1.4.md) for current implementation and checks, and [VERIFICATION-1.1.2.md](VERIFICATION-1.1.2.md) for the earlier phone test sequence. [TEST-REPORT.md](TEST-REPORT.md) records earlier version 1.1.1 results. Download the newest successful APK from Releases to receive these fixes.
