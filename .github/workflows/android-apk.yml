@@ -25,6 +25,8 @@ env:
   EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 jobs:
   apk:
+    # UI-only rechecks validate the existing ARM/x86 artifacts in the recheck workflow.
+    if: ${{ !contains(github.event.head_commit.message, 'UI-only recheck') }}
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -77,6 +79,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
   startup:
+    if: ${{ !contains(github.event.head_commit.message, 'UI-only recheck') }}
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:

@@ -75,6 +75,10 @@ def enter(label,value):
     time.sleep(.5)
     node=find(label,True)
     assert node.get('text')==value, f'{label} duplicated or changed: {node.get("text")!r}'
+    keyboard=adb('shell','dumpsys','input_method')
+    if re.search(r'mInputShown=true|mIsInputViewShown=true',keyboard):
+        adb('shell','input','keyevent','4')
+        time.sleep(.8)
 
 def contains(text):
     for attempt in range(8):
