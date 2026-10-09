@@ -47,15 +47,30 @@ def native_tap(labels):
     for _ in range(5):
         root=ui()
         nodes=[n for n in root.iter('node') if n.get('text','').casefold() in labels or n.get('content-desc','').casefold() in labels]
-        if not nodes and labels=={'add reason'}:
-            # Android can group several alerts; expand the newest group before
-            # looking for its inline reply action.
-            nodes=[n for n in root.iter('node') if n.get('content-desc','').casefold().startswith('expand')]
-            if nodes:
-                node=nodes[0]
-                x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
-                adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
-                continue
+        if labels=={'add reason'}:
+            parents={child:parent for parent in root.iter() for child in parent}
+            amounts=[n for n in root.iter('node') if re.search(r'₹\s*500\.00',n.get('text',''))]
+            target=amounts[0] if amounts else None
+            expanded=False
+            while target is not None:
+                actions=[n for n in target.iter('node') if n.get('text','').casefold() in labels or n.get('content-desc','').casefold() in labels]
+                if actions:
+                    nodes=actions
+                    break
+                expand=[n for n in target.iter('node') if n.get('content-desc','').casefold().startswith('expand')]
+                if expand:
+                    x1,y1,x2,y2=map(int,re.findall(r'\d+',expand[0].get('bounds')))
+                    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
+                    expanded=True
+                    break
+                target=parents.get(target)
+            if expanded:continue
+            if not nodes:
+                expand=[n for n in root.iter('node') if n.get('content-desc','').casefold().startswith('expand')]
+                if expand:
+                    x1,y1,x2,y2=map(int,re.findall(r'\d+',expand[0].get('bounds')))
+                    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
+                    continue
         for node in nodes:
             bounds=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
             if len(bounds)==4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
