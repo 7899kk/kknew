@@ -14,7 +14,7 @@ def start():
     time.sleep(6)
 
 def post(message,number):
-    adb('shell','am','start','-W','-n','com.sbi.SBIFreedomPlus/.MockBank','--es','message',shlex.quote(message),'--ei','notificationId',str(number))
+    adb('shell','am','start','-n','com.sbi.SBIFreedomPlus/.MockBank','--es','message',shlex.quote(message),'--ei','notificationId',str(number))
     time.sleep(7)  # foreground ledger polls the durable native queue every 5s
 
 def home():
@@ -111,8 +111,10 @@ try:
     save('background-inline-reason')
     native_tap({'send','send reply'})
     adb('shell','input','keyevent','4');adb('shell','cmd','statusbar','collapse');start()
-    # The older 100 debit can prompt again after restart; the replied 500 must not.
-    contains('100');tap('Close debit reason')
+    # A warm return retains the X deferral. If Android killed the app meanwhile,
+    # the older 100 can prompt again; the replied 500 must never ask again.
+    if any(n.get('text')=='Money debited' for n in ui().iter('node')):
+        contains('100');tap('Close debit reason')
     contains('68,400');contains('58,400')
     tap('Activity');contains('Fuel');contains('Groceries');save('background-reply-saved')
     adb('shell','am','force-stop','com.profinancer.app');start()
