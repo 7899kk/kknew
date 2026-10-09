@@ -27,7 +27,14 @@ def add_goal(name,target,saved):
     enter('Goal Name',name)
     enter('Target Amount',str(target))
     enter('Already Saved',str(saved))
-    tap('Create Goal')
+    # The submit control can be only partly exposed at the bottom of the modal.
+    # Scroll it fully into view, then verify that submission actually closed it.
+    adb('shell','input','swipe','530','1450','530','700','300');time.sleep(.8)
+    for _ in range(3):
+        tap('Create Goal');time.sleep(1)
+        if not any(n.get('text')=='New Goal' for n in ui().iter('node')):
+            return
+    raise AssertionError(f'Goal form did not submit: {name}')
 
 def native_tap(labels):
     for _ in range(5):

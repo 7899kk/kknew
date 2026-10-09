@@ -1,0 +1,96 @@
+name: Verify J7 household notifications and publish checked APK
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/android-household-recheck.yml', 'scripts/android-bank-flow.py', 'scripts/android-finance-flow.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: j7-household-recheck
+  cancel-in-progress: true
+jobs:
+  screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 28]
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure the tested application source is unchanged
+        run: |
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/a14a21939fc412f73d2f646e1c30896245c0d24c...${GITHUB_SHA}" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/37943211798/jobs" --jq '.jobs[] | select(.name == "apk") | .conclusion')" = success
+      - uses: actions/download-artifact@v4
+        with:
+          name: J7-x86-runtime
+          github-token: ${{ github.token }}
+          run-id: 37943211798
+          path: artifacts/wealthtrack/android/app/build/outputs/apk/release
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Build mock bank fixture
+        run: |
+          keytool -genkeypair -keystore artifacts/wealthtrack/android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=MockBankFixture"
+          bash scripts/build-bank-fixture.sh
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check household and notifications
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86
+          target: default
+          profile: Nexus 5
+          ram-size: 1536M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-startup-smoke.sh ${{ matrix.api }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-household-${{ matrix.api }}-evidence
+          path: startup-evidence/
+          if-no-files-found: error
+  publish:
+    needs: screens
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Pro-Financer-J7-APK
+          github-token: ${{ github.token }}
+          run-id: 37943211798
+          path: apk-download
+      - name: Verify and publish the existing checked ARM build
+        run: |
+          sha256sum -c apk-download/SHA256SUMS.txt
+          python scripts/check-j7-apk.py apk-download/Pro-Financer-J7.apk > apk-download/APK-VERIFICATION.json
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/a14a21939fc412f73d2f646e1c30896245c0d24c...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+          if ! gh release view v1.1.5-j7 >/dev/null 2>&1; then
+            gh release create v1.1.5-j7 --target main --title "Pro Financer 1.1.5 for Galaxy J7" --notes "Extra credits increase the monthly budget; Salary labels offset the salary estimate. Matching teal logo, compact X/Reason/OK debit panel and inline Android notification reason replies. Household villa/car/bike budgets and mock bank notification capture tested on Android 7 and 9. ARM build, type checking, seven regression suites, stress cases, native parser and signature/manifest checks passed. 32-bit ARM personal test APK for Android 7 or newer. Automatic capture needs Android notification access; Play Protect and physical Samsung acceptance still require phone verification. Google sign-in needs Supabase configuration." --prerelease --latest=false
+          fi
+          gh release upload v1.1.5-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber
