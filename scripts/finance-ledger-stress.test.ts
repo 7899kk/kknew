@@ -16,14 +16,14 @@ for (let trial = 0; trial < 1000; trial++) {
   const recordedCents = random(2) ? [random(10000000),random(1000000)] : [];
   const expenses:Expense[] = expenseCents.map((amount,i)=>({id:`e${i}`,date:`${month}-08`,category:'Others',paymentType:'Cash',amount:amount/100}));
   expenses.push({id:'old',date:'2026-09-08',category:'Others',paymentType:'Cash',amount:999999});
-  const incomes:IncomeEntry[] = recordedCents.map((amount,i)=>({id:`i${i}`,date:`${month}-08`,amount:amount/100}));
+  const incomes:IncomeEntry[] = recordedCents.map((amount,i)=>({id:`i${i}`,date:`${month}-08`,amount:amount/100,category:i===0?'Salary':'Gift'}));
   incomes.push({id:'old-income',date:'2026-09-08',amount:999999});
   const reserve = random(500000), bill = random(500000);
   const goals:SavingsGoal[] = [{id:'goal',name:'Dream',targetAmount:20000,savedAmount:reserve/100}];
   const autoExpenses:AutoExpense[] = [{id:'bill',description:'Rent',category:'Rent',paymentType:'Bank',isActive:true,amount:bill/100},{id:'inactive',description:'Inactive',category:'Others',paymentType:'Cash',isActive:false,amount:999999}];
   const state = {profile,expenses,incomes,goals,autoExpenses};
   const actual = financeSummary(state,month);
-  const income = salary+other+recordedCents.reduce((a,b)=>a+b,0);
+  const income = salary+other+recordedCents.reduce((a,b)=>a+b,0)-Math.min(salary,recordedCents[0]??0);
   const spent = expenseCents.reduce((a,b)=>a+b,0);
   const balance = opening+income-spent, available = balance-reserve-bill;
   assert.equal(actual.balance,balance/100,`balance trial ${trial}`);
