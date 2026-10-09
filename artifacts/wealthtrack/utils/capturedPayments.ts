@@ -1,11 +1,22 @@
 import type { Expense, IncomeEntry, PaymentReview } from '../context/AppContext';
 import { sourceNames } from './paymentModels';
-import type { CapturedPayment } from './paymentModels';
+import type { PaymentEvent } from './paymentModels';
 type PaymentState = { expenses:Expense[]; incomes:IncomeEntry[]; paymentReviews:PaymentReview[]; capturedIds:string[] };
-export function applyCapturedPayments<T extends PaymentState>(previous:T, events:CapturedPayment[]):T {
+export function applyCapturedPayments<T extends PaymentState>(previous:T, events:PaymentEvent[]):T {
           let next = previous;
           const seen = new Set(previous.capturedIds);
           for (const event of events) {
+            if (event.kind === 'reason') {
+              if (!event.id || seen.has(event.id) || !event.captureId || typeof event.reason !== 'string') continue;
+              const reason=event.reason.trim();
+              if (!reason || reason.length>200) continue;
+              const expense=next.expenses.find(item=>item.captureId===event.captureId);
+              // A reply can arrive before JS imports the debit; retain it for retry.
+              if (!expense && !seen.has(event.captureId)) continue;
+              seen.add(event.id);
+              next={...next,expenses:next.expenses.map(item=>item.captureId===event.captureId?{...item,notes:reason,needsReason:false}:item)};
+              continue;
+            }
             if (!event.id || seen.has(event.id) || !Number.isFinite(event.amount) || event.amount <= 0 || !Number.isFinite(event.timestamp)) continue;
             const date = new Date(event.timestamp);
             const localDate = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;

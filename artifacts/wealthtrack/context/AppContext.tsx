@@ -1,4 +1,5 @@
 import { financeSummary, contributeToGoal } from '@/utils/financeSummary';
+import type { PaymentEvent } from '@/utils/paymentModels';
 import { applyCapturedPayments, resolveCapturedPayment } from "@/utils/capturedPayments";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -270,7 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const epoch = captureEpoch.current;
       importBusy.current = true;
       try {
-        const events: CapturedPayment[] = JSON.parse(await notificationBridge!.pending());
+        const events: PaymentEvent[] = JSON.parse(await notificationBridge!.pending());
         if (!active || epoch !== captureEpoch.current || !events.length) return;
         update((previous) => {
           if (epoch !== captureEpoch.current) return previous;

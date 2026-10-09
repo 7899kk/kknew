@@ -198,7 +198,7 @@ export default function DashboardScreen() {
           <Card style={{marginBottom:16}}>
             <Text style={{color:colors.foreground,fontWeight:'700'}}>Available to spend: {formatCurrencyFull(app.availableBalance)}</Text>
             <Text style={{color:colors.mutedForeground,marginTop:6}}>Goal savings reserved: {formatCurrencyFull(app.goalSavings)} · Recurring bills planned: {formatCurrencyFull(app.totalAutoExpenses)}</Text>
-            <Text style={{color:colors.mutedForeground,marginTop:6}}>Entered monthly income is used until income is recorded for this month. This is your local budget, not a bank balance.</Text>
+            <Text style={{color:colors.mutedForeground,marginTop:6}}>Monthly income estimate + extra credits. Label received salary as Salary to count it once. This is your local monthly budget estimate.</Text>
           </Card>
           {/* ── Quick Stats ── */}
           <Animated.View

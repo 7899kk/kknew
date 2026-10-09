@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <application>
+    <receiver android:name="expo.modules.moneynotifications.DebitReasonReceiver" android:exported="false" />
     <service android:name="expo.modules.moneynotifications.MoneyListener" android:label="Pro Financer payment tracking" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
       <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
     </service>

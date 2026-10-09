@@ -60,7 +60,7 @@ with zipfile.ZipFile(apk) as archive:
     manifest=next(attrs for name,attrs in elements if name=='manifest')
     sdk=next(attrs for name,attrs in elements if name=='uses-sdk')
     assert manifest['package']=='com.profinancer.app'
-    assert manifest['versionName']=='1.1.4' and manifest['versionCode']==6
+    assert manifest['versionName']=='1.1.5' and manifest['versionCode']==7
     assert sdk['minSdkVersion']==24, sdk
     permissions={attrs['name'] for name,attrs in elements if name=='uses-permission'}
     allowed={'android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}

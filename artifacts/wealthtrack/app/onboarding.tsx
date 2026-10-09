@@ -178,7 +178,7 @@ export default function OnboardingScreen() {
             }}
           >
             <Image
-              source={require("../assets/images/logo.jpg")}
+              source={require("../assets/images/logo.png")}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
             />

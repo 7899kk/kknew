@@ -23,7 +23,7 @@ for (let trial = 0; trial < 1000; trial++) {
   const autoExpenses:AutoExpense[] = [{id:'bill',description:'Rent',category:'Rent',paymentType:'Bank',isActive:true,amount:bill/100},{id:'inactive',description:'Inactive',category:'Others',paymentType:'Cash',isActive:false,amount:999999}];
   const state = {profile,expenses,incomes,goals,autoExpenses};
   const actual = financeSummary(state,month);
-  const income = recordedCents.length ? recordedCents.reduce((a,b)=>a+b,0) : salary+other;
+  const income = salary+other+recordedCents.reduce((a,b)=>a+b,0);
   const spent = expenseCents.reduce((a,b)=>a+b,0);
   const balance = opening+income-spent, available = balance-reserve-bill;
   assert.equal(actual.balance,balance/100,`balance trial ${trial}`);

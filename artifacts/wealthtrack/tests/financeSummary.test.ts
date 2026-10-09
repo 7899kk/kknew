@@ -28,7 +28,8 @@ assert.equal(goalSavingsPlan({...state.goals[0],targetDate:'2026-12-07'},87500,'
 assert.equal(goalSavingsPlan({...state.goals[0],targetDate:'2026-10-01'},0,'2026-10-08').overdue,true);
 assert.equal(goalSavingsPlan(state.goals[0],-100,'2026-10-08').monthlyAmount,0);
 assert.equal(goalSavingsPlan({...state.goals[0],savedAmount:50000},87500,'2026-10-08').remaining,0);
-// Recorded income replaces the estimate so salary is never counted twice.
-assert.equal(financeSummary({...state,incomes:[{id:'salary',date:'2026-10-08',amount:100000}]},month).balance,101000);
+// Explicit salary replaces its estimate; additional/unclassified credits add money.
+assert.equal(financeSummary({...state,incomes:[{id:'salary',date:'2026-10-08',amount:100000,category:'Salary'}]},month).balance,101000);
+assert.equal(financeSummary({...state,incomes:[{id:'credit',date:'2026-10-08',amount:10000}]},month).balance,111000);
 assert.equal(financeSummary({...spent,expenses:[...spent.expenses,{...spent.expenses[0],id:'old',date:'2026-09-08',amount:10000}]},month).balance,98500);
 console.log('Dashboard and goals checks passed: salary + starting savings, expenses, deletion, cash reservations, restart, cent precision, limits and saving plans.');

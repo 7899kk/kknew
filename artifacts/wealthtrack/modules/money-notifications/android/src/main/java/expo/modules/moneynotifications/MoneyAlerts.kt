@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -36,7 +37,7 @@ object MoneyAlerts {
     val amount=java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("en-IN")).apply { currency=java.util.Currency.getInstance("INR") }.format(event.optDouble("amount"))
     val text=when(kind) {
       "income" -> "$amount captured. Tap to name it Salary or another income."
-      "expense" -> "$amount debited. What was it for? Tap to add a reason."
+      "expense" -> "$amount debited. What was it for? Reply with a reason."
       "test", "test-income", "test-expense" -> "This is a sound test. No transaction was added."
       else -> "$amount needs your confirmation before it counts in totals."
     }
@@ -46,7 +47,14 @@ object MoneyAlerts {
     val id=event.getString("id").hashCode() and Int.MAX_VALUE
     val pending=PendingIntent.getActivity(c,id,launch,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     val builder=if(Build.VERSION.SDK_INT>=26) Notification.Builder(c,channel) else Notification.Builder(c)
-    manager.notify(id,builder.setPriority(Notification.PRIORITY_HIGH).setSound(sound,audio).setLargeIcon(android.graphics.BitmapFactory.decodeResource(c.resources,R.drawable.money_logo)).setSmallIcon(R.drawable.money_notification).setContentTitle(title).setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setContentIntent(pending).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion((if(Build.VERSION.SDK_INT>=26) Notification.Builder(c,channel) else Notification.Builder(c)).setSmallIcon(R.drawable.money_notification).setContentTitle("Pro Financer").setContentText("New payment activity").build()).build())
+    if (kind=="expense") {
+      val reply=Intent(c,DebitReasonReceiver::class.java).putExtra("captureId",event.getString("id"))
+      val flags=PendingIntent.FLAG_UPDATE_CURRENT or (if(Build.VERSION.SDK_INT>=31) PendingIntent.FLAG_MUTABLE else 0)
+      val replyIntent=PendingIntent.getBroadcast(c,id,reply,flags)
+      builder.addAction(Notification.Action.Builder(R.drawable.money_notification,"Add reason",replyIntent)
+        .addRemoteInput(RemoteInput.Builder("debitReason").setLabel("What was it for?").build()).build())
+    }
+    manager.notify(id,builder.setPriority(Notification.PRIORITY_HIGH).setSound(sound,audio).setLargeIcon(android.graphics.BitmapFactory.decodeResource(c.resources,R.drawable.money_logo,android.graphics.BitmapFactory.Options().apply { inScaled=false; inSampleSize=4 })).setSmallIcon(R.drawable.money_notification).setContentTitle(title).setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setContentIntent(pending).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion((if(Build.VERSION.SDK_INT>=26) Notification.Builder(c,channel) else Notification.Builder(c)).setSmallIcon(R.drawable.money_notification).setContentTitle("Pro Financer").setContentText("New payment activity").build()).build())
     return true
   }
 }

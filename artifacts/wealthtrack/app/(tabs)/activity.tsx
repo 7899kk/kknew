@@ -56,7 +56,7 @@ export default function ActivityScreen() {
       </Card>
       {notificationBridge&&<Card>
         <Text style={{color:colors.foreground,fontSize:18,fontWeight:'700'}}>Payment notifications</Text>
-        <Text style={{color:colors.mutedForeground,marginVertical:10}}>Get an alert for newly captured money and payments needing review. Tap it to open Activity, name income or add a payment reason. Amounts are hidden on the lock screen.</Text>
+        <Text style={{color:colors.mutedForeground,marginVertical:10}}>Get an alert for newly captured money and payments needing review. Reply to a debit with Add reason without opening the app. In the app, a compact panel asks what it was for. Label received salary as Salary to offset your salary estimate; extra credits add to the budget. Amounts are hidden on the lock screen.</Text>
         <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><Text style={{color:colors.foreground}}>Send payment alerts</Text><Switch accessibilityLabel="Send payment alerts" value={status.alertsEnabled??true} onValueChange={async value=>{try{await notificationBridge!.setAlertsEnabled(value);await refresh();}catch{setError('Could not change payment alerts.');}}}/></View>
         <Text style={{color:colors.mutedForeground,marginVertical:10}}>Android notification permission: {status.notificationsGranted?'Allowed':'Not allowed'}</Text>
         {!status.notificationsGranted&&<Button title="Allow app notifications" onPress={async()=>{try{await notificationBridge!.requestNotifications();await refresh();}catch{setError('Open Android Settings > Apps > Pro Financer > Notifications.');}}}/>}

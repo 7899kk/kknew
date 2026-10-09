@@ -26,7 +26,11 @@ class MoneyNotificationsModule : Module() {
     AsyncFunction("openAppNotificationSettings") { context().startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,context().packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     AsyncFunction("setAlertsEnabled") { value:Boolean -> MoneyStore.setAlertsEnabled(context(),value) }
     AsyncFunction("testNotification") { direction:String -> val kind=if(direction=="income") "test-income" else "test-expense"; MoneyAlerts.show(context(),org.json.JSONObject().put("id",kind).put("kind",kind).put("amount",0)) }
-    AsyncFunction("setEnabled") { value: Boolean -> MoneyStore.setEnabled(context(),value) }
+    AsyncFunction("setEnabled") { value: Boolean ->
+      val c=context()
+      MoneyStore.setEnabled(c,value)
+      if(value) android.service.notification.NotificationListenerService.requestRebind(ComponentName(c,MoneyListener::class.java))
+    }
     AsyncFunction("pending") { MoneyStore.pending(context()).toString() }
     AsyncFunction("acknowledge") { ids: List<String> -> MoneyStore.acknowledge(context(),ids) }
     AsyncFunction("clear") { MoneyStore.clear(context()) }

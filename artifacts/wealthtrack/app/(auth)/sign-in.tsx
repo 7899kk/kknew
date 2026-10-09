@@ -8,7 +8,7 @@ export default function SignInPage(){
  const account=useAccount();const colors=useColors();const [busy,setBusy]=useState(false);const [error,setError]=useState('');
  const login=async()=>{setBusy(true);setError('');try{await account.signInGoogle();router.replace('/');}catch(e){setError(e instanceof Error?e.message:'Could not sign in.');}finally{setBusy(false);}};
  return <View style={{flex:1,backgroundColor:colors.background,justifyContent:'center',padding:24,gap:18}}>
- <Image source={require('../../assets/images/logo.jpg')} style={{height:100,width:100,borderRadius:24,alignSelf:'center'}}/>
+ <Image source={require('../../assets/images/logo.png')} style={{height:100,width:100,borderRadius:24,alignSelf:'center'}}/>
  <Text style={{color:colors.foreground,fontSize:28,fontWeight:'700',textAlign:'center'}}>Pro Financer</Text>
  <Text style={{color:colors.mutedForeground,textAlign:'center'}}>Sign in with Google using Supabase. Your finance records stay on this device; sign-in does not upload or back them up.</Text>
  {!account.configured&&<Text style={{color:colors.mutedForeground}}>Google sign-in is awaiting this app's Supabase configuration. Continue locally to use payment tracking.</Text>}

@@ -45,7 +45,7 @@ export function ProFinancierHeader({ title, subtitle, rightSlot, compact }: Prop
           }}
         >
           <Image
-            source={require("../assets/images/logo.jpg")}
+            source={require("../assets/images/logo.png")}
             style={{ width: logoSize, height: logoSize }}
             resizeMode="cover"
             fadeDuration={0}

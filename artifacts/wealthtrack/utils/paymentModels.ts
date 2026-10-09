@@ -1,4 +1,6 @@
 export type CapturedPayment = { id: string; amount: number; kind: 'expense' | 'income' | 'transfer' | 'review'; source: string; timestamp: number; reference?: string | null };
+export type DebitReasonReply = {id:string;kind:'reason';captureId:string;reason:string;timestamp:number};
+export type PaymentEvent = CapturedPayment | DebitReasonReply;
 export const sourceNames: Record<string,string> = {
   'com.phonepe.app': 'PhonePe', 'net.one97.paytm': 'Paytm',
   'com.google.android.apps.nbu.paisa.user': 'Google Pay', 'in.org.npci.upiapp': 'BHIM',

@@ -6,7 +6,7 @@ const paisa=(amount:number)=>Number.isFinite(amount)&&amount>=0?Math.round(amoun
 const total=(values:number[])=>values.reduce((sum,value)=>sum+paisa(value),0)/100;
 
 export function financeSummary(state:Ledger,month=localDate().slice(0,7)) {
-  const totals=monthlyTotals(month,total([state.profile.monthlySalary,state.profile.otherIncome]),state.incomes,state.expenses);
+  const totals=monthlyTotals(month,total([state.profile.monthlySalary,state.profile.otherIncome]),state.incomes,state.expenses,state.profile.monthlySalary);
   const income=Math.round(totals.income*100)/100;
   const expenses=Math.round(totals.expenses*100)/100;
   const recurring=total(state.autoExpenses.filter(item=>item.isActive).map(item=>item.amount));

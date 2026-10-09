@@ -9,6 +9,12 @@ object MoneyStore {
   @Synchronized fun setEnabled(c: Context, value: Boolean) { prefs(c).edit().putBoolean("enabled", value).commit() }
   @Synchronized fun pending(c: Context): JSONArray = JSONArray(prefs(c).getString("pending", "[]"))
   @Synchronized fun alertsEnabled(c:Context) = prefs(c).getBoolean("alerts",true)
+  @Synchronized fun enqueueReason(c:Context,event:JSONObject):Boolean {
+    val seen=JSONArray(prefs(c).getString("seen","[]"))
+    val captureId=event.getString("captureId")
+    if ((0 until seen.length()).none { seen.getString(it)==captureId }) return false
+    return enqueue(c,event)
+  }
   @Synchronized fun setAlertsEnabled(c:Context,value:Boolean) { prefs(c).edit().putBoolean("alerts",value).commit() }
   @Synchronized fun enqueue(c: Context, event: JSONObject): Boolean {
     val p = prefs(c); val queue = pending(c)
