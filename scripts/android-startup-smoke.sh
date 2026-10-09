@@ -19,7 +19,9 @@ import sys
 ui=(Path(sys.argv[1])/'startup.xml').read_text()
 assert 'Welcome to Pro Financier' in ui, 'App did not reach onboarding; inspect screenshot and logcat'
 PY
-python scripts/android-finance-flow.py "$evidence"
+if [ "${HOUSEHOLD_ONLY:-0}" != "1" ]; then
+  python scripts/android-finance-flow.py "$evidence"
+fi
 
 python scripts/android-bank-flow.py "$evidence"
 adb logcat -d > "$evidence/final-logcat.txt"

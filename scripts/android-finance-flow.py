@@ -9,11 +9,19 @@ import xml.etree.ElementTree as ET
 evidence=Path(sys.argv[1]); evidence.mkdir(parents=True,exist_ok=True)
 
 def adb(*args):
-    return subprocess.check_output(['adb',*args],text=True)
+    return subprocess.check_output(['adb',*args],text=True,timeout=45)
 
 def ui(attempt=0):
-    adb('shell','uiautomator','dump','/sdcard/flow.xml')
-    value=adb('shell','cat','/sdcard/flow.xml')
+    for retry in range(3):
+        try:
+            adb('shell','rm','-f','/sdcard/flow.xml')
+            adb('shell','uiautomator','dump','/sdcard/flow.xml')
+            value=adb('shell','cat','/sdcard/flow.xml')
+            ET.fromstring(value)
+            break
+        except (subprocess.SubprocessError, ET.ParseError):
+            if retry==2:raise
+            time.sleep(.5)
     (evidence/'flow-latest.xml').write_text(value)
     root=ET.fromstring(value)
     # The stock Android 7 emulator keyboard requests contacts on first use.

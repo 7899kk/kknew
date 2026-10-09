@@ -20,6 +20,7 @@ jobs:
         api: [24, 28]
     env:
       GH_TOKEN: ${{ github.token }}
+      HOUSEHOLD_ONLY: '1'
     steps:
       - uses: actions/checkout@v4
       - name: Ensure the tested application source is unchanged
