@@ -57,9 +57,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm --filter @workspace/wealthtrack typecheck
-          for test in artifacts/wealthtrack/tests/*.test.ts scripts/finance-ledger-stress.test.ts; do
-            node --import ./scripts/node_modules/tsx/dist/loader.mjs "$test"
-          done
+          node scripts/run-finance-regressions.mjs
           pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
       - name: Test parser and build standalone J7 APK
         working-directory: artifacts/wealthtrack/android
