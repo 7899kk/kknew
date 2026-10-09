@@ -21,6 +21,13 @@ def home():
     # Restore the top of a long goal list before changing tabs.
     for _ in range(3): adb('shell','input','swipe','530','650','530','1450','250')
 
+def scroll_contains(text):
+    for _ in range(10):
+        if any(text in n.get('text','') or text in n.get('content-desc','') for n in ui().iter('node')):
+            return
+        adb('shell','input','swipe','530','1450','530','650','300');time.sleep(.6)
+    raise AssertionError(f'Missing scrollable UI value {text}')
+
 def add_goal(name,target,saved):
     tap('Add goal')
     tap('Custom')
@@ -40,6 +47,15 @@ def native_tap(labels):
     for _ in range(5):
         root=ui()
         nodes=[n for n in root.iter('node') if n.get('text','').casefold() in labels or n.get('content-desc','').casefold() in labels]
+        if not nodes and labels=={'add reason'}:
+            # Android can group several alerts; expand the newest group before
+            # looking for its inline reply action.
+            nodes=[n for n in root.iter('node') if n.get('content-desc','').casefold().startswith('expand')]
+            if nodes:
+                node=nodes[0]
+                x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+                adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
+                continue
         for node in nodes:
             bounds=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
             if len(bounds)==4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
@@ -47,7 +63,7 @@ def native_tap(labels):
                 adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
                 return
         time.sleep(1)
-    raise AssertionError(f'Native notification control missing: {labels}')
+    raise AssertionError(f'Native notification control missing: {labels}; visible labels: '+str([(n.get('text'),n.get('content-desc')) for n in ui().iter('node') if n.get('text') or n.get('content-desc')]))
 
 try:
     adb('shell','pm','clear','com.profinancer.app')
@@ -95,7 +111,7 @@ try:
     # Closing keeps the original expense, with a reason reminder in Activity.
     post('INR 100 debited. UTR: TEST100002',105)
     contains('Money debited');tap('Close debit reason')
-    contains('68,900');tap('Activity');contains('Add payment reasons');tap('Dashboard')
+    contains('68,900');tap('Activity');scroll_contains('Add payment reasons');tap('Dashboard')
 
     # A reply from the system notification shade must work while the app is closed.
     adb('shell','input','keyevent','3')
@@ -116,7 +132,7 @@ try:
     if any(n.get('text')=='Money debited' for n in ui().iter('node')):
         contains('100');tap('Close debit reason')
     contains('68,400');contains('58,400')
-    tap('Activity');contains('Fuel');contains('Groceries');save('background-reply-saved')
+    tap('Activity');scroll_contains('Fuel');scroll_contains('Groceries');save('background-reply-saved')
     adb('shell','am','force-stop','com.profinancer.app');start()
     contains('100');tap('Close debit reason')
     contains('68,400');contains('58,400');save('household-restart')
