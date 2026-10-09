@@ -73,10 +73,13 @@ try:
     tap('Dashboard');contains('40,500');contains('30,500');save('household-reserved-30500')
 
     adb('install','-r','bank-fixture-build/mock-bank.apk')
-    component='com.profinancer.app/expo.modules.moneynotifications.MoneyListener'
-    adb('shell','settings','put','secure','enabled_notification_listeners',component)
-    adb('shell','am','force-stop','com.profinancer.app');start()
-    tap('Activity');tap('Capture new payments');tap('Dashboard')
+    # Exercise the actual Android consent flow rather than writing a secure
+    # setting that the OS can revoke during force-stop/service reconciliation.
+    tap('Activity');tap('Notification access settings')
+    native_tap({'pro financer'})
+    native_tap({'allow','ok'})
+    adb('shell','input','keyevent','4');time.sleep(3)
+    tap('Capture new payments');contains('Capture: On');tap('Dashboard')
     post('INR 10,000 credited. UTR: TEST100001',101)
     contains('50,500');save('bank-credit-10000')
     post('INR 20,000 credited. UTR: TEST200001',102)
