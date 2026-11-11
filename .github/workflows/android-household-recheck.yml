@@ -1,8 +1,5 @@
-name: Verify J7 household notifications and publish checked APK
+name: Historical 1.1.5 household APK recheck (manual)
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/android-household-recheck.yml', 'scripts/android-bank-flow.py', 'scripts/android-finance-flow.py']
   workflow_dispatch:
 permissions:
   contents: read
