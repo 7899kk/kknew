@@ -2,6 +2,18 @@
 set -euo pipefail
 evidence="startup-evidence/android-${1}"
 mkdir -p "$evidence"
+report_failure() {
+  result=$?
+  if [ "$result" -ne 0 ]; then
+    echo "Android test failure diagnostics"
+    if [ -f "$evidence/startup.xml" ]; then cat "$evidence/startup.xml"; fi
+    if [ -f "$evidence/flow-latest.xml" ]; then cat "$evidence/flow-latest.xml"; fi
+    adb logcat -d > "$evidence/failure-logcat.txt" || true
+    tail -n 180 "$evidence/failure-logcat.txt" || true
+  fi
+  return "$result"
+}
+trap report_failure EXIT
 adb install -r artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
 adb logcat -c
 adb shell am start -W -n com.profinancer.app/.MainActivity
