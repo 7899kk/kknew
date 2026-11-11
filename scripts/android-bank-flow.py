@@ -104,6 +104,10 @@ try:
     tap('Dashboard');contains('40,500');contains('30,500');save('household-reserved-30500')
 
     adb('install','-r','bank-fixture-build/mock-bank.apk')
+    if int(adb('shell','getprop','ro.build.version.sdk').strip()) >= 33:
+        # Exercise capture and inline replies independently of the app-notification prompt.
+        adb('shell','pm','grant','com.profinancer.app','android.permission.POST_NOTIFICATIONS')
+        adb('shell','pm','grant','com.sbi.SBIFreedomPlus','android.permission.POST_NOTIFICATIONS')
     # Exercise the actual Android consent flow rather than writing a secure
     # setting that the OS can revoke during force-stop/service reconciliation.
     tap('Activity');tap('Notification access settings')

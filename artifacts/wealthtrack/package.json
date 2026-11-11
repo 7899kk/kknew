@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=$CLERK_PUBLISHABLE_KEY EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=$ALPHA_VANTAGE_API_KEY EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "dev": "expo start",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -62,11 +62,17 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@noble/ciphers": "^1.3.0",
+    "@noble/hashes": "^1.8.0",
     "@supabase/supabase-js": "^2.117.2",
     "expo": "~54.0.33",
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.8",
+    "expo-document-picker": "~14.0.8",
+    "expo-file-system": "~19.0.21",
     "expo-secure-store": "~15.0.8",
+    "expo-sharing": "~14.0.8",
+    "expo-sqlite": "~16.0.10",
     "fast-text-encoding": "^1.0.6",
     "react": "19.1.0",
     "react-native": "0.81.5",

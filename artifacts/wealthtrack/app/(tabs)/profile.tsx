@@ -1,3 +1,4 @@
+import { LedgerTools } from "@/components/LedgerTools";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
 import { Feather } from "@expo/vector-icons";
 import { useAccount } from "@/context/AuthContext";
@@ -29,7 +30,13 @@ import {
   StatCard,
 } from "@/components/UI";
 
-function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<void> }) {
+function ProfileScreen({
+  user,
+  signOut,
+}: {
+  user?: any;
+  signOut: () => Promise<void>;
+}) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const app = useApp();
@@ -42,10 +49,19 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
   const [savings, setSavings] = useState(app.profile.currentSavings.toString());
 
   const save = () => {
-    if (![monthly,other,savings].every(v=>validMoney(v,true,true))) { Alert.alert("Check amounts", "Income and savings must be valid non-negative amounts."); return; }
+    if (![monthly, other, savings].every((v) => validMoney(v, true, true))) {
+      Alert.alert(
+        "Check amounts",
+        "Income and savings must be valid non-negative amounts.",
+      );
+      return;
+    }
     app.updateProfile({
       name: name.trim() || app.profile.name,
-      username: username.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""),
+      username: username
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, ""),
       monthlySalary: parseFloat(monthly) || 0,
       yearlySalary: (parseFloat(monthly) || 0) * 12,
       otherIncome: parseFloat(other) || 0,
@@ -89,7 +105,14 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
         text: "Sign Out",
         style: "destructive",
         onPress: async () => {
-          try { await signOut(); } catch { Alert.alert("Sign out failed", "Check your connection and try again."); }
+          try {
+            await signOut();
+          } catch {
+            Alert.alert(
+              "Sign out failed",
+              "Check your connection and try again.",
+            );
+          }
         },
       },
     ]);
@@ -115,7 +138,9 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
       showsVerticalScrollIndicator={false}
     >
       {/* Profile Card */}
-      <Card style={{ marginBottom: 20, alignItems: "center", paddingVertical: 28 }}>
+      <Card
+        style={{ marginBottom: 20, alignItems: "center", paddingVertical: 28 }}
+      >
         <Pressable onPress={pickPhoto} style={{ marginBottom: 12 }}>
           {profilePhotoUri ? (
             <Image
@@ -177,16 +202,31 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
           {displayName}
         </Text>
         {displayUsername ? (
-          <Text style={{ color: colors.primary, fontSize: 14, marginTop: 2, fontWeight: "600" }}>
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: 14,
+              marginTop: 2,
+              fontWeight: "600",
+            }}
+          >
             @{displayUsername}
           </Text>
         ) : null}
         {user?.emailAddresses?.[0]?.emailAddress ? (
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
+          <Text
+            style={{
+              color: colors.mutedForeground,
+              fontSize: 13,
+              marginTop: 2,
+            }}
+          >
             {user.emailAddresses[0].emailAddress}
           </Text>
         ) : null}
-        <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
+        <Text
+          style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}
+        >
           {formatCurrency(app.profile.monthlySalary)}/month
         </Text>
         <Pressable
@@ -208,7 +248,13 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
             borderColor: colors.border,
           }}
         >
-          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>
+          <Text
+            style={{
+              color: colors.foreground,
+              fontWeight: "600",
+              fontSize: 13,
+            }}
+          >
             Edit Profile
           </Text>
         </Pressable>
@@ -237,12 +283,6 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
             color: colors.savings,
           },
           {
-            label: "Investments",
-            value: app.totalInvestments,
-            icon: "trending-up",
-            color: colors.investment,
-          },
-          {
             label: "Total Debt",
             value: app.totalDebt,
             icon: "alert-circle",
@@ -256,8 +296,16 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
           },
         ].map((item) => (
           <Card key={item.label}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
                 <View
                   style={{
                     width: 36,
@@ -268,9 +316,15 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
                     justifyContent: "center",
                   }}
                 >
-                  <Feather name={item.icon as any} size={16} color={item.color} />
+                  <Feather
+                    name={item.icon as any}
+                    size={16}
+                    color={item.color}
+                  />
                 </View>
-                <Text style={{ fontSize: 15, color: colors.foreground }}>{item.label}</Text>
+                <Text style={{ fontSize: 15, color: colors.foreground }}>
+                  {item.label}
+                </Text>
               </View>
               <Text
                 style={{
@@ -289,15 +343,38 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
 
       {/* Stats */}
       <SectionHeader title="Activity" />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 10,
+          marginBottom: 20,
+        }}
+      >
         {[
-          { label: "Expenses logged", value: app.expenses.length, icon: "list" },
+          {
+            label: "Expenses logged",
+            value: app.expenses.length,
+            icon: "list",
+          },
           { label: "Goals set", value: app.goals.length, icon: "target" },
-          { label: "Investments", value: app.stocks.length + app.cryptos.length + app.goldSilver.length, icon: "trending-up" },
-          { label: "Debt entries", value: app.debts.length, icon: "alert-circle" },
+
+          {
+            label: "Debt entries",
+            value: app.debts.length,
+            icon: "alert-circle",
+          },
           { label: "Bill groups", value: app.billGroups.length, icon: "users" },
         ].map((item) => (
-          <Card key={item.label} style={{ flex: 1, minWidth: 120, alignItems: "center", padding: 14 }}>
+          <Card
+            key={item.label}
+            style={{
+              flex: 1,
+              minWidth: 120,
+              alignItems: "center",
+              padding: 14,
+            }}
+          >
             <Feather name={item.icon as any} size={20} color={colors.primary} />
             <Text
               style={{
@@ -310,7 +387,14 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
             >
               {item.value}
             </Text>
-            <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: "center", marginTop: 2 }}>
+            <Text
+              style={{
+                fontSize: 11,
+                color: colors.mutedForeground,
+                textAlign: "center",
+                marginTop: 2,
+              }}
+            >
               {item.label}
             </Text>
           </Card>
@@ -318,6 +402,7 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
       </View>
 
       {/* Settings */}
+      <LedgerTools />
       <SectionHeader title="Settings" />
       <Card style={{ padding: 0 }}>
         {[
@@ -330,7 +415,9 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
           {
             icon: "log-out",
             label: user ? "Sign Out" : "Sign in with Google",
-            onPress: user ? handleSignOut : () => router.push("/(auth)/sign-in"),
+            onPress: user
+              ? handleSignOut
+              : () => router.push("/(auth)/sign-in"),
             color: colors.destructive,
           },
         ].map((item, i, arr) => (
@@ -347,8 +434,14 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
             }}
           >
             <Feather name={item.icon as any} size={18} color={item.color} />
-            <Text style={{ flex: 1, fontSize: 15, color: item.color }}>{item.label}</Text>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            <Text style={{ flex: 1, fontSize: 15, color: item.color }}>
+              {item.label}
+            </Text>
+            <Feather
+              name="chevron-right"
+              size={16}
+              color={colors.mutedForeground}
+            />
           </Pressable>
         ))}
       </Card>
@@ -403,7 +496,12 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Input label="Full Name" value={name} onChangeText={setName} placeholder="Your name" />
+            <Input
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+            />
             <Input
               label="Username"
               value={username}
@@ -446,8 +544,22 @@ function ProfileScreen({ user, signOut }: { user?: any; signOut: () => Promise<v
 const styles = StyleSheet.create({});
 
 export default function ProfileEntry() {
-  const account=useAccount();
-  const u=account.session?.user;
-  const user=u?{fullName:u.user_metadata.full_name,imageUrl:u.user_metadata.avatar_url,emailAddresses:[{emailAddress:u.email}]}:undefined;
-  return <ProfileScreen user={user} signOut={async()=>{if(u)await account.signOut();else router.push('/(auth)/sign-in');}}/>;
+  const account = useAccount();
+  const u = account.session?.user;
+  const user = u
+    ? {
+        fullName: u.user_metadata.full_name,
+        imageUrl: u.user_metadata.avatar_url,
+        emailAddresses: [{ emailAddress: u.email }],
+      }
+    : undefined;
+  return (
+    <ProfileScreen
+      user={user}
+      signOut={async () => {
+        if (u) await account.signOut();
+        else router.push("/(auth)/sign-in");
+      }}
+    />
+  );
 }

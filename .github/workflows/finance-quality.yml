@@ -1,0 +1,35 @@
+name: Finance reliability and shared groups
+on:
+  pull_request:
+    paths: ['artifacts/wealthtrack/**', 'scripts/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/finance-quality.yml']
+  push:
+    branches: [main]
+    paths: ['artifacts/wealthtrack/**', 'scripts/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/finance-quality.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  finance-and-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/wealthtrack typecheck
+      - run: node scripts/run-finance-regressions.mjs
+      - run: pnpm --filter @workspace/wealthtrack exec expo export --platform web --output-dir dist
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node scripts/profinancer-web.test.cjs artifacts/wealthtrack/dist
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: finance-web-evidence
+          path: /tmp/profinancer-web-test-*/
+          if-no-files-found: ignore

@@ -6,7 +6,13 @@ import java.security.MessageDigest
 import org.json.JSONObject
 
 class MoneyListener : NotificationListenerService() {
+  companion object { @Volatile var connected=false }
+  override fun onListenerConnected(){super.onListenerConnected();connected=true}
+  override fun onListenerDisconnected(){connected=false;super.onListenerDisconnected();if(MoneyStore.enabled(this))requestRebind(android.content.ComponentName(this,MoneyListener::class.java))}
+  override fun onDestroy(){connected=false;super.onDestroy()}
+
   override fun onNotificationPosted(sbn: StatusBarNotification) {
+    try {
     if (!MoneyStore.enabled(this)) return
     val sources=setOf("com.phonepe.app","net.one97.paytm","com.google.android.apps.nbu.paisa.user","in.org.npci.upiapp","com.sbi.SBIFreedomPlus","com.csam.icici.bank.imobile","com.snapwork.hdfc","com.axis.mobile")
     if(sbn.packageName !in sources || (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
@@ -14,6 +20,7 @@ class MoneyListener : NotificationListenerService() {
     val title=extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
     val body=(extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
     val text="$title $body"
+    MoneyStore.observed(this)
     val parsed=MoneyParser.parse(text) ?: return
     // Ref key omits app source so the same UPI alert from bank + payment app is not counted twice.
     val fingerprint=parsed.fingerprint(sbn.packageName,sbn.key,sbn.postTime,text)
@@ -23,5 +30,6 @@ class MoneyListener : NotificationListenerService() {
       // Alert failure never affects the durable payment queue.
       try { MoneyAlerts.show(this,event) } catch (_: Exception) {}
     }
+    } catch (_: Exception) { MoneyStore.error(this,"Could not capture a payment alert. Check storage space and your statement.") }
   }
 }

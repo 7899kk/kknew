@@ -35,11 +35,13 @@ object MoneyAlerts {
     }
     val title=when(kind) { "income" -> "Money received"; "expense" -> "Money debited"; "test-income" -> "Test: money received sound"; "test-expense" -> "Test: money sent sound"; "test" -> "Payment alerts are ready"; else -> "Payment needs review" }
     val amount=java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("en-IN")).apply { currency=java.util.Currency.getInstance("INR") }.format(event.optDouble("amount"))
+    val timestamp=event.optLong("timestamp",System.currentTimeMillis())
+    val dateTime=java.text.SimpleDateFormat("EEEE, dd MMM yyyy · hh:mm a",java.util.Locale.forLanguageTag("en-IN")).format(java.util.Date(timestamp))
     val text=when(kind) {
-      "income" -> "$amount captured. Tap to name it Salary or another income."
-      "expense" -> "$amount debited. What was it for? Reply with a reason."
+      "income" -> "$amount credited · $dateTime. Tap to name this income."
+      "expense" -> "$amount debited · $dateTime. What was it for? Reply with a reason."
       "test", "test-income", "test-expense" -> "This is a sound test. No transaction was added."
-      else -> "$amount needs your confirmation before it counts in totals."
+      else -> "$amount · $dateTime. Confirm this payment before it counts in totals."
     }
     val launch=c.packageManager.getLaunchIntentForPackage(c.packageName) ?: return false
     launch.data=Uri.parse("profinancer://activity")
@@ -54,7 +56,7 @@ object MoneyAlerts {
       builder.addAction(Notification.Action.Builder(R.drawable.money_notification,"Add reason",replyIntent)
         .addRemoteInput(RemoteInput.Builder("debitReason").setLabel("What was it for?").build()).build())
     }
-    manager.notify(id,builder.setPriority(Notification.PRIORITY_HIGH).setSound(sound,audio).setLargeIcon(android.graphics.BitmapFactory.decodeResource(c.resources,R.drawable.money_logo,android.graphics.BitmapFactory.Options().apply { inScaled=false; inSampleSize=4 })).setSmallIcon(R.drawable.money_notification).setContentTitle(title).setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setContentIntent(pending).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion((if(Build.VERSION.SDK_INT>=26) Notification.Builder(c,channel) else Notification.Builder(c)).setSmallIcon(R.drawable.money_notification).setContentTitle("Pro Financer").setContentText("New payment activity").build()).build())
+    manager.notify(id,builder.setWhen(timestamp).setShowWhen(true).setPriority(Notification.PRIORITY_HIGH).setSound(sound,audio).setLargeIcon(android.graphics.BitmapFactory.decodeResource(c.resources,R.drawable.money_logo,android.graphics.BitmapFactory.Options().apply { inScaled=false; inSampleSize=4 })).setSmallIcon(R.drawable.money_notification).setContentTitle(title).setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setContentIntent(pending).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion((if(Build.VERSION.SDK_INT>=26) Notification.Builder(c,channel) else Notification.Builder(c)).setSmallIcon(R.drawable.money_notification).setContentTitle("Pro Financer").setContentText("New payment activity").build()).build())
     return true
   }
 }

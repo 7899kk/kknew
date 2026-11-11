@@ -12,7 +12,7 @@ class MoneyNotificationsModule : Module() {
     AsyncFunction("status") {
       val c=context(); val component=ComponentName(c,MoneyListener::class.java).flattenToString()
       val granted=Settings.Secure.getString(c.contentResolver,"enabled_notification_listeners")?.split(":")?.contains(component) == true
-      mapOf("granted" to granted,"enabled" to MoneyStore.enabled(c),"overflow" to MoneyStore.overflow(c),"notificationsGranted" to MoneyAlerts.allowed(c),"alertsEnabled" to MoneyStore.alertsEnabled(c))
+      mapOf("granted" to granted,"enabled" to MoneyStore.enabled(c),"overflow" to MoneyStore.overflow(c),"notificationsGranted" to MoneyAlerts.allowed(c),"alertsEnabled" to MoneyStore.alertsEnabled(c)) + MoneyStore.health(c)
     }
     AsyncFunction("openSettings") { context().startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     AsyncFunction("requestNotifications") {
@@ -33,6 +33,7 @@ class MoneyNotificationsModule : Module() {
     }
     AsyncFunction("pending") { MoneyStore.pending(context()).toString() }
     AsyncFunction("acknowledge") { ids: List<String> -> MoneyStore.acknowledge(context(),ids) }
+    AsyncFunction("markImported") { MoneyStore.imported(context()) }
     AsyncFunction("clear") { MoneyStore.clear(context()) }
   }
 }

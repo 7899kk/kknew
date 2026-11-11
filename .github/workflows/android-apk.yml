@@ -28,7 +28,7 @@ jobs:
     # UI-only rechecks validate the existing ARM/x86 artifacts in the recheck workflow.
     if: ${{ !contains(github.event.head_commit.message, 'UI-only recheck') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,7 +36,7 @@ jobs:
           version: 10.28.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - uses: actions/setup-java@v4
         with:
@@ -61,7 +61,7 @@ jobs:
           pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
       - name: Test parser and build standalone J7 APK
         working-directory: artifacts/wealthtrack/android
-        run: ./gradlew :money-notifications:testReleaseUnitTest :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        run: ./gradlew :money-notifications:testReleaseUnitTest :app:assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
       - name: Sign and verify for Android 7 through Android 9
         run: |
           mkdir -p apk-download
@@ -79,7 +79,7 @@ jobs:
   startup:
     if: ${{ !contains(github.event.head_commit.message, 'UI-only recheck') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -87,7 +87,7 @@ jobs:
           version: 10.28.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - uses: actions/setup-java@v4
         with:
@@ -110,7 +110,7 @@ jobs:
           pnpm --filter @workspace/wealthtrack exec expo prebuild --platform android --no-install
       - name: Build release app for 32-bit runtime tests
         working-directory: artifacts/wealthtrack/android
-        run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86,x86_64 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
       - uses: actions/upload-artifact@v4
         with:
           name: J7-x86-runtime
@@ -146,6 +146,17 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash scripts/android-startup-smoke.sh 28
+      - name: Test finance and notification capture on current Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          ram-size: 2048M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-startup-smoke.sh 36
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -172,7 +183,7 @@ jobs:
           sha256sum -c apk-download/SHA256SUMS.txt
           changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
           test -z "$changes"
-          if ! gh release view v1.1.5-j7 >/dev/null 2>&1; then
-            gh release create v1.1.5-j7 --target main --title "Pro Financer 1.1.5 for Galaxy J7" --notes "Smaller 32-bit ARM personal test APK. Unused camera, microphone, location, overlay, media-library and biometric permissions removed. Automatic capture still needs Android notification access, and Google Play Protect may restrict sideloaded notification-listener apps. Corrected name input, income plus starting-savings dashboard balance, expense deductions and goal reservations. Tab buttons now account for Android navigation-bar space. Additional credits now add to estimated income; Salary labels prevent double counting. Teal logo, compact debit panel and inline notification reason replies. Signature, parser and Android 7/9 finance-screen checks are included; emulator checks are not a physical Samsung or Play Protect acceptance test." --prerelease --latest=false
+          if ! gh release view v1.2.0-j7 >/dev/null 2>&1; then
+            gh release create v1.2.0-j7 --target main --title "Pro Financer 1.2.0 for Android 7+" --notes "Local SQLite ledger with retained migration data, stronger payment-capture validation and health diagnostics, file-based shared groups with organizer-approved proposals, partial and full repayments with reversal history, password-encrypted backup and restore, category budgets and monthly reports. No paid APIs or hosted group backend. CI validates finance regressions and Android 7/9 startup flows; physical-device notification behavior still needs testing." --prerelease --latest=false
           fi
-          gh release upload v1.1.5-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber
+          gh release upload v1.2.0-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber

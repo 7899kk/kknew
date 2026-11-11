@@ -1,3 +1,4 @@
+import { PaymentToast } from "@/components/PaymentToast";
 import { useFonts } from "expo-font";
 import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
 import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
@@ -20,7 +21,6 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-
 function RootLayoutNav() {
   const { profile } = useApp();
 
@@ -37,10 +37,7 @@ function RootLayoutNav() {
         name="onboarding"
         options={{ headerShown: false, gestureEnabled: false }}
       />
-      <Stack.Screen
-        name="(auth)"
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -63,20 +60,21 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-        <SafeAreaProvider>
-          <ErrorBoundary>
-            <QueryClientProvider client={queryClient}>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <AppProvider>
-                    <RootLayoutNav />
-                    <DebitReasonPrompt />
-                  </AppProvider>
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </QueryClientProvider>
-          </ErrorBoundary>
-        </SafeAreaProvider>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <AppProvider>
+                  <RootLayoutNav />
+                  <PaymentToast />
+                  <DebitReasonPrompt />
+                </AppProvider>
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
     </AuthProvider>
   );
 }

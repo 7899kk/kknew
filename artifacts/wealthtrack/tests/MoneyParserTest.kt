@@ -2,6 +2,20 @@ import expo.modules.moneynotifications.MoneyParser
 import expo.modules.moneynotifications.fingerprint
 fun main() {
   val cases=listOf(
+    Triple("PhonePe You paid Rs.1,234.56 UPI Ref No: 912345678901", "expense", 1234.56),
+    Triple("Paytm Received ₹500 from a friend. UPI Ref: 912345678902", "income", 500.0),
+    Triple("Google Pay ₹250 sent. UPI transaction ID: 912345678903", "expense", 250.0),
+    Triple("BHIM INR 100 paid. UTR: 912345678904", "expense", 100.0),
+    Triple("SBI a/c XX1234 debited INR 200. Ref No: 912345678905", "expense", 200.0),
+    Triple("ICICI INR 350 credited. Transaction ID: 912345678906", "income", 350.0),
+    Triple("HDFC Rs. 1,00,000 credited. UTR: 912345678907", "income", 100000.0),
+    Triple("Axis INR 450 debited. Ref: 912345678908", "expense", 450.0),
+    Triple("INR 100 credited. Balance INR 5000. Ref: ABC123456", "review", 100.0),
+    Triple("INR 100 reversed. Ref: ABC123456", "review", 100.0),
+    Triple("INR 100 scheduled payment. Ref: ABC123456", "skip", 0.0),
+    Triple("INR 100 never successfully received. Ref: ABC123456", "skip", 0.0),
+    Triple("INR .50 debited. Ref: ABC123456", "skip", 0.0),
+    Triple("INR 1,00,00,000.25 credited. UTR: ABC123456", "income", 10000000.25),
     Triple("₹ 250.50 debited. UPI Ref: 123456789012", "expense", 250.50),
     Triple("INR 1,00,000 received. UTR: ABCD123456", "income", 100000.0),
     Triple("Rs. 1,,200 debited. UTR: ABCD123456", "skip", 0.0),

@@ -2,7 +2,15 @@
 
 Expo / React Native app with local finance records, Activity and Android payment notification capture.
 
-## Download the Android APK
+## Current source: 1.2.0
+
+This checkout adds SQLite ledger migration/recovery, stronger payment-capture validation and health status, offline group snapshots and organizer-approved proposals, partial/full repayments with reversal history, password-encrypted backup/restore, monthly category budgets and reports. Captured payment messages include the amount, day, date and time; spending insights show how much more or less you spent than the previous comparable period. Bill sharing has a guided flow and an in-app summary. Investments stay removed; no paid market API or hosted group backend is required.
+
+Open **Dashboard → Budgets and reports**, **Split → Create group / Import group or proposal file**, **Activity → Capture health**, or **Profile → Backup and recovery**. Share group snapshots to friends; they can send proposal files back for your approval. Files do not verify identities or bank payments.
+
+[Verification and remaining phone checks](VERIFICATION-1.2.0.md) explain the tests and limits. The source changes are not yet published as an APK. The existing 1.1.5 download below is the previous build.
+
+## Previously published Android APK (1.1.5)
 
 Version 1.1.5 adds extra credits correctly, offsets salary estimates when labeled Salary, and includes a matching teal logo, compact debit reason panel and Android inline reason replies. **[Download Pro-Financer-J7.apk](https://github.com/7899kk/kknew/releases/download/v1.1.5-j7/Pro-Financer-J7.apk)** or open the [J7 release](https://github.com/7899kk/kknew/releases/tag/v1.1.5-j7).
 

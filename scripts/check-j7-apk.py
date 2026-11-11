@@ -11,7 +11,7 @@ with zipfile.ZipFile(apk) as archive:
     names=archive.namelist()
     assert 'assets/index.android.bundle' in names, 'Standalone app bundle missing'
     architectures={name.split('/')[1] for name in names if name.startswith('lib/')}
-    assert architectures == {'armeabi-v7a'}, architectures
+    assert architectures == {'armeabi-v7a', 'arm64-v8a'}, architectures
     assert len([name for name in names if name.endswith('.wav')]) == 3, 'Payment sounds missing'
     assert any(name.endswith('.SF') and name.startswith('META-INF/') for name in names), 'Legacy v1 signature missing'
     binary=archive.read('AndroidManifest.xml')
@@ -60,7 +60,8 @@ with zipfile.ZipFile(apk) as archive:
     manifest=next(attrs for name,attrs in elements if name=='manifest')
     sdk=next(attrs for name,attrs in elements if name=='uses-sdk')
     assert manifest['package']=='com.profinancer.app'
-    assert manifest['versionName']=='1.1.5' and manifest['versionCode']==7
+    config=json.loads(Path('artifacts/wealthtrack/app.json').read_text())['expo']
+    assert manifest['versionName']==config['version'] and manifest['versionCode']==config['android']['versionCode']
     assert sdk['minSdkVersion']==24, sdk
     permissions={attrs['name'] for name,attrs in elements if name=='uses-permission'}
     allowed={'android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
