@@ -1,0 +1,129 @@
+name: Test and publish an existing Android build
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Build and test Galaxy J7 APK run containing signed ARM and emulator artifacts
+        required: true
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: android-release-recheck
+  cancel-in-progress: true
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    outputs:
+      source_commit: ${{ steps.source.outputs.source_commit }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify compiled APK and unchanged application source
+        id: source
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          source_commit=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}" --jq '.head_sha')
+          workflow=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}" --jq '.path')
+          test "$workflow" = '.github/workflows/android-apk.yml'
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}/jobs" --jq '.jobs[] | select(.name == "apk") | .conclusion')" = success
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${source_commit}...${GITHUB_SHA}" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
+  device-tests:
+    needs: verify-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 24
+            arch: x86
+            target: default
+            profile: Nexus 5
+            ram: 1536M
+          - api: 28
+            arch: x86
+            target: default
+            profile: Nexus 5
+            ram: 1536M
+          - api: 36
+            arch: x86_64
+            target: google_apis
+            profile: pixel_2
+            ram: 2048M
+    env:
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: J7-x86-runtime
+          run-id: ${{ env.BUILD_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: artifacts/wealthtrack/android/app/build/outputs/apk/release
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Build isolated mock bank fixture
+        run: |
+          keytool -genkeypair -keystore artifacts/wealthtrack/android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=MockBankFixture"
+          bash scripts/build-bank-fixture.sh
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify finance, restart and actual notification capture
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          target: ${{ matrix.target }}
+          profile: ${{ matrix.profile }}
+          ram-size: ${{ matrix.ram }}
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-startup-smoke.sh ${{ matrix.api }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-${{ matrix.api }}-release-evidence
+          path: startup-evidence/
+          if-no-files-found: ignore
+  publish:
+    needs: [verify-source, device-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      SOURCE_COMMIT: ${{ needs.verify-source.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Pro-Financer-J7-APK
+          run-id: ${{ env.BUILD_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: apk-download
+      - name: Verify and publish the tested APK
+        run: |
+          sha256sum -c apk-download/SHA256SUMS.txt
+          python scripts/check-j7-apk.py apk-download/Pro-Financer-J7.apk > apk-download/APK-VERIFICATION.json
+          changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${SOURCE_COMMIT}...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+          test -z "$changes"
+          if ! gh release view v1.2.0-j7 >/dev/null 2>&1; then
+            gh release create v1.2.0-j7 --target "$SOURCE_COMMIT" --title "Pro Financer 1.2.0 for Android 7+" --notes "Automatic payment messages with amount, weekday, date and time; comparable-period monthly spending insights; guided offline shared bills with owner-approved updates and repayments; encrypted backup/recovery and category budgets. ARM32 and ARM64 support. Finance and notification flows tested on Android 7, 9 and 16 emulators. Personal preview build signed with the Android test key; physical-phone checks remain required. Enable notification access and capture in Activity." --prerelease --latest=false
+          fi
+          gh release upload v1.2.0-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber

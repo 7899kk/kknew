@@ -110,7 +110,7 @@ try:
         adb('shell','pm','grant','com.sbi.SBIFreedomPlus','android.permission.POST_NOTIFICATIONS')
     # Exercise the actual Android consent flow rather than writing a secure
     # setting that the OS can revoke during force-stop/service reconciliation.
-    tap('Activity');tap('Notification access settings')
+    tap('Activity');tap('Open notification access settings')
     native_tap({'pro financer','pro financer payment tracking'})
     native_tap({'allow','ok'})
     adb('shell','input','keyevent','4');time.sleep(3)

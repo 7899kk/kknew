@@ -57,6 +57,11 @@ def match(root,label,edit=False):
             if node is None:continue
         bounds=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
         if len(bounds)==4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
+            # Native accessibility includes partially exposed controls behind the
+            # bottom tab bar. Scroll them fully into view before tapping.
+            tabs={'Dashboard','Expenses','Activity','Debts','Goals','Split','Profile'}
+            if label not in tabs and (bounds[1]<64 or bounds[3]>1680):
+                continue
             matches.append(node)
     return matches
 
