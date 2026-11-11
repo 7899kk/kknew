@@ -3,7 +3,12 @@ import { openDatabaseAsync } from "expo-sqlite";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { decodeLedger, ledgerSchema } from "./ledgerSchema";
 import type { Ledger } from "./ledgerSchema";
-import { LEDGER_SQL, writeSQLLedger, readSQLLedger } from "./sqlLedger";
+import {
+  LEDGER_SQL,
+  writeSQLLedger,
+  readSQLLedger,
+  eraseSQLLedger,
+} from "./sqlLedger";
 const LEGACY = "profinancier_data_v3";
 let database: Promise<SQLiteDatabase> | undefined;
 async function db() {
@@ -43,4 +48,10 @@ export async function recoverLedger(): Promise<Ledger> {
       "No recovery copy is available. Existing records have not been changed.",
     );
   return value;
+}
+
+export async function clearLedger(empty: Ledger) {
+  // Explicit user reset also removes the retained pre-migration copy.
+  await AsyncStorage.removeItem(LEGACY);
+  await eraseSQLLedger(await db(), empty);
 }

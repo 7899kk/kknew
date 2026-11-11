@@ -90,9 +90,16 @@ function ProfileScreen({
       {
         text: "Reset",
         style: "destructive",
-        onPress: () => {
-          app.resetData();
-          router.replace("/onboarding");
+        onPress: async () => {
+          try {
+            await app.resetData();
+            router.replace("/onboarding");
+          } catch (e) {
+            Alert.alert(
+              "Reset incomplete",
+              e instanceof Error ? e.message : "Please try again.",
+            );
+          }
         },
       },
     ]);

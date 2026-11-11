@@ -9,7 +9,7 @@ import {
   Repayment,
   GroupProposal,
 } from "@/utils/ledgerSchema";
-import { loadLedger, saveLedger } from "@/utils/ledgerStorage";
+import { loadLedger, saveLedger, clearLedger } from "@/utils/ledgerStorage";
 import { financeSummary, contributeToGoal } from "@/utils/financeSummary";
 import { inspectPaymentBatch } from "@/utils/paymentModels";
 import {
@@ -201,7 +201,7 @@ interface AppContextType extends AppState {
   restoreData: (data: unknown) => Promise<void>;
   exportData: () => Promise<AppState>;
 
-  resetData: () => void;
+  resetData: () => Promise<void>;
   retrySave: () => void;
   storageError: string | null;
   addIncome: (data: Omit<IncomeEntry, "id">) => void;
@@ -374,7 +374,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const update = useCallback(
     (updater: (s: AppState) => AppState) => {
-      if (restoring.current) return;
+      if (restoring.current || resetting.current) return;
       try {
         const previous = stateRef.current,
           proposed = updater(previous);
@@ -518,27 +518,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loaded, update]);
 
-  const resetData = useCallback(() => {
-    // Reset requested from the confirmation screen; archived investment data is also cleared.
+  const resetData = useCallback(async () => {
     captureEpoch.current++;
     setCaptureNotice(null);
     resetting.current = true;
-    const clearCapture = notificationBridge?.clear() ?? Promise.resolve();
-    clearCapture
-      .catch(() =>
-        setStorageError(
-          "Could not disable payment capture. Disable it in Android settings.",
-        ),
-      )
-      .finally(() => {
-        resetting.current = false;
-      });
-    update(() => ({
-      ...defaultState,
-      deviceId: stateRef.current.deviceId,
-      profile: { ...defaultProfile },
-    }));
-  }, [update]);
+    try {
+      await saving.current.catch(() => {});
+      await notificationBridge?.clear();
+      const next = {
+        ...defaultState,
+        deviceId: stateRef.current.deviceId,
+        profile: { ...defaultProfile },
+      };
+      await clearLedger(next);
+      stateRef.current = next;
+      setState(next);
+      setStorageError(null);
+    } catch {
+      const message =
+        "Reset could not finish. Check device storage and notification access, then try again.";
+      setStorageError(message);
+      throw Error(message);
+    } finally {
+      resetting.current = false;
+    }
+  }, []);
   const retrySave = useCallback(() => update((s) => ({ ...s })), [update]);
   const addIncome = useCallback(
     (data: Omit<IncomeEntry, "id">) => {

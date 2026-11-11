@@ -1,3 +1,4 @@
+import { eraseSQLLedger } from '../utils/sqlLedger';
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes } from "node:crypto";
@@ -141,6 +142,14 @@ await writeSQLLedger(db, updated);
 assert.equal(
   native.prepare("SELECT COUNT(*) AS n FROM processed_capture").get()?.n,
   2,
+);
+const erased = { ...base, expenses: [], goals: [], capturedIds: [] };
+await eraseSQLLedger(db, erased);
+assert.deepEqual(await readSQLLedger(db), erased);
+assert.equal(await readSQLLedger(db, true), null);
+assert.equal(
+  native.prepare("SELECT COUNT(*) AS n FROM processed_capture").get()?.n,
+  0,
 );
 native.close();
 

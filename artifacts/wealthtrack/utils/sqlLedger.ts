@@ -47,3 +47,15 @@ export async function readSQLLedger(db: LedgerDatabase, recovery = false) {
   );
   return row ? decodeLedger(row.payload) : null;
 }
+
+export async function eraseSQLLedger(db: LedgerDatabase, empty: Ledger) {
+  const payload = encodeLedger(empty);
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.runAsync(
+      "INSERT OR REPLACE INTO ledger(id,payload) VALUES(1,?)",
+      payload,
+    );
+    await tx.runAsync("DELETE FROM processed_capture");
+    await tx.runAsync("DELETE FROM recovery");
+  });
+}

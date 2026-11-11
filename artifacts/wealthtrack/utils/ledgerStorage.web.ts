@@ -32,3 +32,12 @@ export async function recoverLedger() {
   if (!raw) throw Error("No recovery copy is available.");
   return decodeLedger(raw);
 }
+
+export async function clearLedger(empty: Ledger) {
+  await AsyncStorage.multiRemove([
+    KEY,
+    KEY + "_recovery",
+    "profinancier_data_v3",
+  ]);
+  await saveLedger(empty);
+}
