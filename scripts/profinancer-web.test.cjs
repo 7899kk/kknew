@@ -80,6 +80,9 @@ const server = http.createServer((req, res) => {
     await expect(
       p.getByText("Available to spend:", { exact: false }),
     ).toBeVisible();
+    await expect(
+      p.getByText("Available to spend:", { exact: false }),
+    ).toBeInViewport();
     return p;
   }
   const button = (p, name) => p.getByRole("button", { name, exact: true });

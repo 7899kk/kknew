@@ -372,9 +372,6 @@ export default function DashboardScreen() {
         </Animated.View>
 
         <View style={{ paddingHorizontal: 16 }}>
-          <LatestPayment />
-          <SpendingInsight />
-          <BudgetReports />
           <Card style={{ marginBottom: 16 }}>
             <Text style={{ color: colors.foreground, fontWeight: "700" }}>
               Available to spend: {formatCurrencyFull(app.availableBalance)}
@@ -390,6 +387,9 @@ export default function DashboardScreen() {
               estimate.
             </Text>
           </Card>
+          <LatestPayment />
+          <SpendingInsight />
+          <BudgetReports />
           {/* ── Quick Stats ── */}
           <Animated.View
             style={{
