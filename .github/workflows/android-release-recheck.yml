@@ -9,6 +9,9 @@ on:
         description: Diagnose Android 16 only without publishing
         type: boolean
         default: false
+      validated_older_run_id:
+        description: Optional completed run with passing Android 7 and 9 tests for the identical app source
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -23,6 +26,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      VALIDATED_OLDER_RUN_ID: ${{ inputs.validated_older_run_id }}
     steps:
       - uses: actions/checkout@v4
       - name: Verify compiled APK and unchanged application source
@@ -35,6 +39,20 @@ jobs:
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}/jobs" --jq '.jobs[] | select(.name == "apk") | .conclusion')" = success
           changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${source_commit}...${GITHUB_SHA}" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
           test -z "$changes"
+          if [ -n "$VALIDATED_OLDER_RUN_ID" ]; then
+            [[ "$VALIDATED_OLDER_RUN_ID" =~ ^[0-9]+$ ]]
+            older_path=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATED_OLDER_RUN_ID}" --jq '.path')
+            test "$older_path" = '.github/workflows/android-release-recheck.yml'
+            older_commit=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATED_OLDER_RUN_ID}" --jq '.head_sha')
+            changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${source_commit}...${older_commit}" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
+            test -z "$changes"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATED_OLDER_RUN_ID}/jobs" --jq '.jobs[] | select(.name == "verify-source") | .conclusion')" = success
+            for api in 24 28; do
+              prefix="device-tests (${api},"
+              result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATED_OLDER_RUN_ID}/jobs" --jq ".jobs[] | select(.name | startswith(\"${prefix}\")) | .conclusion")
+              test "$result" = success
+            done
+          fi
           echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
   device-tests:
     needs: verify-source
@@ -89,7 +107,7 @@ jobs:
           path: startup-evidence/
           if-no-files-found: ignore
   publish:
-    if: ${{ !inputs.current_android_only }}
+    if: ${{ !inputs.current_android_only || inputs.validated_older_run_id != '' }}
     needs: [verify-source, device-tests]
     runs-on: ubuntu-latest
     permissions:

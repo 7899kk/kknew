@@ -112,8 +112,15 @@ try:
     # setting that the OS can revoke during force-stop/service reconciliation.
     tap('Activity');tap('Open notification access settings')
     native_tap({'pro financer','pro financer payment tracking'})
+    modern=int(adb('shell','getprop','ro.build.version.sdk').strip()) >= 33
+    if modern:
+        # Current Android opens a detail page before presenting the consent dialog.
+        native_tap({'allow notification access'})
     native_tap({'allow','ok'})
-    adb('shell','input','keyevent','4');time.sleep(3)
+    if modern:
+        start()  # Return from the extra settings detail page to the app.
+    else:
+        adb('shell','input','keyevent','4');time.sleep(3)
     tap('Capture new payments');contains('Capture: On');tap('Dashboard')
     post('INR 10,000 credited. UTR: TEST100001',101)
     contains('50,500');save('bank-credit-10000')

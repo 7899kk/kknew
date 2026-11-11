@@ -17,12 +17,21 @@ trap report_failure EXIT
 adb install -r artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
 adb logcat -c
 adb shell am start -W -n com.profinancer.app/.MainActivity
-sleep 20
+deadline=$((SECONDS + 60))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  sleep 2
+  if adb shell uiautomator dump /sdcard/startup.xml && adb pull /sdcard/startup.xml "$evidence/startup.xml"; then
+    if python - "$evidence/startup.xml" <<'READY'
+from pathlib import Path
+import sys
+sys.exit(0 if 'Welcome to Pro Financier' in Path(sys.argv[1]).read_text() else 1)
+READY
+    then break; fi
+  fi
+done
 adb logcat -d > "$evidence/logcat.txt"
 adb shell pidof com.profinancer.app > "$evidence/pid.txt"
 test -s "$evidence/pid.txt"
-adb shell uiautomator dump /sdcard/startup.xml
-adb pull /sdcard/startup.xml "$evidence/startup.xml"
 adb shell screencap -p /sdcard/startup.png
 adb pull /sdcard/startup.png "$evidence/startup.png"
 python - "$evidence" <<'PY'
