@@ -13,7 +13,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: android-release-recheck
+  group: android-release-recheck-${{ inputs.current_android_only }}
   cancel-in-progress: true
 jobs:
   verify-source:
