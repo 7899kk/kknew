@@ -43,6 +43,19 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
+    tabs={'Dashboard','Expenses','Activity','Debts','Goals','Split','Profile'}
+    nav_bounds=[]
+    for candidate in root.iter('node'):
+        if candidate.get('text') not in tabs:continue
+        box=list(map(int,re.findall(r'\d+',candidate.get('bounds',''))))
+        if len(box)!=4 or box[1]<1500:continue
+        control=candidate
+        while control is not None and control.get('clickable')!='true':control=parents.get(control)
+        if control is not None:
+            box=list(map(int,re.findall(r'\d+',control.get('bounds',''))))
+            if len(box)==4:nav_bounds.append(box[1])
+    # Native Modal forms have no visible tab bar; their bottom buttons remain tappable.
+    nav_top=min(nav_bounds) if len(nav_bounds)>=3 else None
     for node in root.iter('node'):
         if not (node.get('content-desc')==label or node.get('text')==label or
                 (not edit and node.get('content-desc','').startswith(label+', tab'))):
@@ -59,8 +72,7 @@ def match(root,label,edit=False):
         if len(bounds)==4 and bounds[2]>bounds[0] and bounds[3]>bounds[1]:
             # Native accessibility includes partially exposed controls behind the
             # bottom tab bar. Scroll them fully into view before tapping.
-            tabs={'Dashboard','Expenses','Activity','Debts','Goals','Split','Profile'}
-            if label not in tabs and (bounds[1]<64 or bounds[3]>1680):
+            if label not in tabs and nav_top is not None and bounds[3]>nav_top:
                 continue
             matches.append(node)
     return matches
