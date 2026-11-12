@@ -37,7 +37,17 @@ def accept_review(kind):
     tap('Activity');tap('Review');tap(kind);tap('Save');time.sleep(2)
 
 def reason(value):
-    contains('Money debited');enter('Reason',value);tap('OK');time.sleep(1)
+    contains('Money debited')
+    tap('Reason',True);ui()
+    adb('shell','input','text',value);time.sleep(.5)
+    # Android 7 can report a stale mInputShown flag with a hardware keyboard.
+    # Back then closes the app dialog. Submit the single-line field with Enter
+    # to dismiss its keyboard while preserving the explicit OK save action.
+    node=h['find']('Reason',True)
+    assert node.get('text')==value, 'Debit reason was not entered exactly once'
+    adb('shell','input','keyevent','66');time.sleep(.8)
+    contains('Money debited');save('sms-reason-entered-'+value.lower())
+    tap('OK');time.sleep(1)
 
 try:
     adb('shell','pm','clear','com.profinancer.app');start()
