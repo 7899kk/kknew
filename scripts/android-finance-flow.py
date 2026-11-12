@@ -163,6 +163,19 @@ if __name__ == "__main__":
         root=ui()
         assert all('J7TesterJ7Tester' not in str(node.attrib) for node in root.iter('node'))
         save('restart-profile')
+        # Regression: save the previous group-name/member-list form with the
+        # real soft keyboard open. One tap must submit instead of swallowing it.
+        adb('shell','settings','put','secure','show_ime_with_hard_keyboard','1')
+        tap('Split');tap('Create group')
+        for field,value in [('Group name','Weekend'),('Members, separated by commas','Arun,%sPriya,%sKarthik')]:
+            tap(field,True);ui();adb('shell','input','text',value);time.sleep(.5)
+        tap('Save')
+        contains('Weekend');contains('Arun, Priya, Karthik');save('group-people-saved-first-tap')
+        adb('shell','settings','put','secure','show_ime_with_hard_keyboard','0')
+        adb('shell','am','force-stop','com.profinancer.app')
+        adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
+        tap('Split');contains('Weekend');contains('Arun, Priya, Karthik');save('group-people-after-restart')
+
         (evidence/'FINANCE-FLOW-PASSED.txt').write_text('Name and username entered once. Salary 100000 + savings 1000 = 101000. Expense 2500 => 98500. Goal reservation 1000 => available 97500, cash unchanged. Data persisted after restart.\n')
         print('Android finance flow passed')
     except Exception:

@@ -184,7 +184,7 @@ jobs:
           sha256sum -c apk-download/SHA256SUMS.txt
           changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
           test -z "$changes"
-          if ! gh release view v1.3.0-j7 >/dev/null 2>&1; then
-            gh release create v1.3.0-j7 --target "$GITHUB_SHA" --title "Pro Financer 1.3.0 for Android 7+" --notes "Bank SMS capture with in-app permission setup, debit/credit receipts with dates and times, failed-payment filtering and review for uncertain messages. Cleaner Activity, Home and shared bills, dashboard card breakdowns, persistent profile photos, debts and credits, and shared monthly dream-saving suggestions. SQLite ledger, encrypted backups and offline group sharing. Android 7+ preview; physical-device checks remain required." --prerelease --latest=false
+          if ! gh release view v1.3.1-j7 >/dev/null 2>&1; then
+            gh release create v1.3.1-j7 --target "$GITHUB_SHA" --title "Pro Financer 1.3.1 for Android 7+" --notes "Restores the original dashboard layout and finance pie chart, keeps card details, removes explanatory text, and restores the previous bill-group member form. Save works while the keyboard is open. Includes existing bank SMS capture, persistent photos and monthly dream-saving plans. ARM32 and ARM64, Android 7+. Preview signed with the Android test key; physical-phone checks remain necessary." --prerelease --latest=false
           fi
-          gh release upload v1.3.0-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber
+          gh release upload v1.3.1-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber

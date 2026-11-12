@@ -6,7 +6,6 @@ import {
   Modal,
   ScrollView,
   Share,
-  Pressable,
   Text,
   View,
 } from "react-native";
@@ -41,7 +40,6 @@ export default function BillSplitScreen() {
     insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<string | null>(null),
     [form, setForm] = useState<Form>(null);
-  const [person, setPerson] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [name, setName] = useState(""),
     [members, setMembers] = useState(""),
@@ -70,7 +68,7 @@ export default function BillSplitScreen() {
     setForm(kind);
     setName("");
     setMembers("");
-    setPerson("");
+    setError("");
     setDescription("");
     setAmount(value);
     setFrom(a || g?.members[0] || "");
@@ -588,6 +586,7 @@ export default function BillSplitScreen() {
         onRequestClose={() => setForm(null)}
       >
         <ScrollView
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             padding: 24,
             paddingTop: insets.top + 24,
@@ -613,58 +612,11 @@ export default function BillSplitScreen() {
             <>
               <Input label="Group name" value={name} onChangeText={setName} />
               <Input
-                label="Person’s name"
-                value={person}
-                onChangeText={setPerson}
+                label="Members, separated by commas"
+                placeholder="Arun, Priya, Karthik"
+                value={members}
+                onChangeText={setMembers}
               />
-              <Button
-                title="Add person"
-                variant="secondary"
-                onPress={() => {
-                  const value = person.trim();
-                  if (!value || value.includes(",") || value.length > 100) {
-                    setError("Enter one name, up to 100 characters.");
-                    return;
-                  }
-                  const list = members.split(",").filter(Boolean);
-                  if (
-                    list.some((n) => n.toLowerCase() === value.toLowerCase())
-                  ) {
-                    setError("This name is already in the group.");
-                    return;
-                  }
-                  setMembers([...list, value].join(","));
-                  setPerson("");
-                  setError("");
-                }}
-              />
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {members
-                  .split(",")
-                  .filter(Boolean)
-                  .map((member) => (
-                    <Pressable
-                      key={member}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove ${member}`}
-                      onPress={() =>
-                        setMembers(
-                          members
-                            .split(",")
-                            .filter((n) => n !== member)
-                            .join(","),
-                        )
-                      }
-                      style={{
-                        backgroundColor: colors.primary + "18",
-                        padding: 12,
-                        borderRadius: 20,
-                      }}
-                    >
-                      <Text style={{ color: colors.primary }}>{member} ×</Text>
-                    </Pressable>
-                  ))}
-              </View>
             </>
           ) : (
             <>

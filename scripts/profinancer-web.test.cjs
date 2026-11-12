@@ -106,6 +106,7 @@ const server = http.createServer((req, res) => {
   }
   try {
     const owner = await newUser();
+    await expect(owner.getByText("₹70,000", { exact: true })).toBeVisible();
     await owner.screenshot({
       path: path.join(temp, "home.png"),
       fullPage: true,
@@ -121,7 +122,27 @@ const server = http.createServer((req, res) => {
       await button(owner, buttonName).click();
       await expect(owner.getByText(detailLabel, { exact: true })).toBeVisible();
       await button(owner, "Close").click();
+      await expect(button(owner, "Close")).toHaveCount(0);
     }
+    await expect(
+      owner.getByText("Starting savings + monthly income − recorded expenses", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    const overview = button(owner, "Open finance overview details");
+    await overview.scrollIntoViewIfNeeded();
+    await expect(overview).toBeInViewport();
+    await expect(overview.locator("svg")).toHaveCount(1);
+    await owner.screenshot({
+      path: path.join(temp, "dashboard-chart.png"),
+      fullPage: true,
+    });
+    await overview.click();
+    await button(owner, "View expenses").click();
+    await expect(
+      owner.getByText("Total expenses", { exact: true }),
+    ).toBeVisible();
+    await button(owner, "Close").click();
     for (const tab of ["Dues", "Goals", "Profile"]) {
       await owner.getByRole("tab", { name: new RegExp(tab) }).click();
       await expect(
@@ -145,10 +166,7 @@ const server = http.createServer((req, res) => {
     await owner.getByRole("tab", { name: /Split/ }).click();
     await button(owner, "Create group").click();
     await fill(owner, "Group name", "Trip");
-    for (const name of ["A", "B", "C"]) {
-      await fill(owner, "Person’s name", name);
-      await button(owner, "Add person").click();
-    }
+    await fill(owner, "Members, separated by commas", "A, B, C");
     await button(owner, "Save").click();
     await expect(owner.getByLabel("Group name", { exact: true })).toHaveCount(
       0,
