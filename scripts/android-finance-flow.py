@@ -117,7 +117,9 @@ def enter(label,value):
     assert node.get('text')==value, f'{label} duplicated or changed: {node.get("text")!r}'
     keyboard=adb('shell','dumpsys','input_method')
     if re.search(r'mInputShown=true|mIsInputViewShown=true',keyboard):
-        adb('shell','input','keyevent','4')
+        # Hardware-keyboard emulators can report a stale IME flag. Back then
+        # closes the form. Enter dismisses a single-line field without navigation.
+        adb('shell','input','keyevent','66')
         time.sleep(.8)
 
 def contains(text):
