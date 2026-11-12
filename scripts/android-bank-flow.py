@@ -13,14 +13,20 @@ def start():
     adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
 
 def allow_permissions():
+    dashboard_seen=False
     for _ in range(12):
         root=ui()
         allow=next((n for n in root.iter('node') if n.get('text','').casefold() in {'allow','while using the app'}),None)
         if allow is not None:
             x1,y1,x2,y2=map(int,re.findall(r'\d+',allow.get('bounds')))
             adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
-        elif any(n.get('text')=='Available to spend' for n in root.iter('node')):return
-        else:time.sleep(1)
+        elif any(n.get('content-desc')=='Open available balance details' for n in root.iter('node')):
+            # Use the stable card action rather than the changing visual label.
+            # Check twice so a queued notification-consent dialog can appear.
+            if dashboard_seen:return
+            dashboard_seen=True;time.sleep(1)
+        else:
+            dashboard_seen=False;time.sleep(1)
     raise AssertionError('SMS permission flow did not return to dashboard')
 
 sender='VM-HDFCBK'
