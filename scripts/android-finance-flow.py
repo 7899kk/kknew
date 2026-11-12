@@ -119,6 +119,11 @@ def tap_filter(label):
 def enter(label,value):
     tap(label,True)
     ui()  # dismiss any stock-keyboard setup prompt before sending text
+    # Replace existing defaults (for example the loan's 0% interest), as a
+    # person editing the field would, rather than appending to them.
+    existing=find(label,True).get('text','')
+    adb('shell','input','keyevent','123')
+    if existing:adb('shell','input','keyevent',*(['67']*min(len(existing),500)))
     adb('shell','input','text',value)
     time.sleep(.5)
     node=find(label,True)
