@@ -14,7 +14,9 @@ report_failure() {
   return "$result"
 }
 trap report_failure EXIT
-adb install -r artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
+# Nougat emulators can hang during streamed APK installation. Push the complete
+# APK first, and bound the installer so infrastructure stalls fail promptly.
+timeout 180 adb install --no-streaming -r artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
 adb logcat -c
 adb shell am start -W -n com.profinancer.app/.MainActivity
 deadline=$((SECONDS + 60))
