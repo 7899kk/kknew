@@ -21,15 +21,28 @@ object SmsCapture {
     if(value) MoneyStore.setEnabled(c,false)
   }
   @Synchronized fun clear(c:Context){check(prefs(c).edit().clear().commit())}
-  @Synchronized fun capture(c:Context,sender:String,body:String,timestamp:Long){
-    if(!enabled(c)||!granted(c)) return
+  @Synchronized fun capture(c:Context,sender:String,body:String,timestamp:Long):Boolean{
+    if(!enabled(c)||!granted(c)) return false
     MoneyStore.observed(c)
-    val parsed=SmsPaymentParser.parse(sender,body) ?: return
+    val parsed=SmsPaymentParser.parse(sender,body) ?: return true
     val source="sms:"+sender.uppercase()
     val fingerprint=parsed.fingerprint(source,sender.uppercase(),timestamp,body)
     val id=MessageDigest.getInstance("SHA-256").digest(fingerprint.toByteArray()).joinToString(""){"%02x".format(it)}
     val event=JSONObject().put("id",id).put("amount",parsed.amount).put("kind",parsed.kind).put("source",source).put("timestamp",timestamp).put("reference",parsed.reference ?: JSONObject.NULL)
-    if(MoneyStore.enqueue(c,event)) try{MoneyAlerts.show(c,event)}catch(_:Exception){}
+    val bank=SmsReceiptIdentity.bank(sender);val account=SmsReceiptIdentity.account(body);val balance=SmsReceiptIdentity.balance(body)
+    event.put("bankKey",bank)
+    if(account!=null)event.put("accountKey",account)
+    if(balance!=null)event.put("balanceAfter",balance)
+    val recent=MoneyStore.recentReceipts(c)
+    val records=(0 until recent.length()).map { i -> val item=recent.getJSONObject(i)
+      SmsReceipt(item.getString("id"),item.getString("bankKey"),item.optString("accountKey").takeIf{it.isNotEmpty()},if(item.has("balanceAfter"))item.getDouble("balanceAfter") else null,item.getDouble("amount"),item.getString("kind"),item.optString("reference").takeIf{it.isNotEmpty()&&it!="null"},item.getLong("timestamp"))
+    }
+    val possible=SmsReceiptIdentity.possibleDuplicate(SmsReceipt(id,bank,account,balance,parsed.amount,parsed.kind,parsed.reference,timestamp),records)
+    if(possible!=null)event.put("kind","review").put("possibleDuplicateOf",possible.id).put("directionHint",parsed.kind)
+    val added=MoneyStore.enqueue(c,event)
+    if(added) try{MoneyAlerts.show(c,event)}catch(_:Exception){}
+    // A full queue is not a successful scan: retain the inbox cursor for retry.
+    return added || MoneyStore.pending(c).length()<2000
   }
   /** Recover only inbox messages arriving since opt-in; cursor advances after durable processing. */
   @Synchronized fun recover(c:Context){
@@ -41,7 +54,7 @@ object SmsCapture {
         while(count++<200 && rows.moveToNext()) {
           if(MoneyStore.pending(c).length()>=2000) break
           val sent=rows.getLong(4)
-          capture(c,rows.getString(1).orEmpty(),rows.getString(2).orEmpty(),if(sent>0)sent else rows.getLong(3))
+          if(!capture(c,rows.getString(1).orEmpty(),rows.getString(2).orEmpty(),if(sent>0)sent else rows.getLong(3)))break
           check(p.edit().putLong("cursor",rows.getLong(0)).commit())
         }
       }

@@ -1,3 +1,7 @@
+import { linkedObligations, localGroupMember } from "@/utils/obligations";
+import type { Obligation } from "@/utils/obligations";
+import { loanSchema } from "@/utils/ledgerSchema";
+import type { Loan, LoanPayment } from "@/utils/ledgerSchema";
 import { localDate } from "@/utils/financeValidation";
 import { selectNewPaymentReceipt } from "@/utils/paymentReceipt";
 import type { PaymentReceipt } from "@/utils/paymentReceipt";
@@ -25,7 +29,7 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { AppState as Lifecycle, Text, View } from "react-native";
+import { AppState as Lifecycle, Image, Text, View } from "react-native";
 import {
   CapturedPayment,
   notificationBridge,
@@ -58,6 +62,10 @@ export interface Expense {
   captureId?: string;
   source?: string;
   needsReason?: boolean;
+  bankKey?: string;
+  accountKey?: string;
+  balanceAfter?: number;
+  possibleDuplicateOf?: string;
 }
 
 export interface AutoExpense {
@@ -157,6 +165,11 @@ export interface UserProfile {
 }
 
 export interface IncomeEntry {
+  bankKey?: string;
+  accountKey?: string;
+  balanceAfter?: number;
+  possibleDuplicateOf?: string;
+
   id: string;
   amount: number;
   date: string;
@@ -175,6 +188,8 @@ export interface PaymentReview extends Omit<CapturedPayment, "kind"> {
 }
 
 export interface AppState {
+  loans: Loan[];
+  groupMemberships: Record<string, string>;
   deviceId?: string;
   budgets: Budget[];
   incomes: IncomeEntry[];
@@ -192,6 +207,18 @@ export interface AppState {
 }
 
 interface AppContextType extends AppState {
+  obligations: Obligation[];
+  totalCredit: number;
+  monthlyLoanPayments: number;
+  setGroupMember: (groupId: string, member: string) => void;
+  addLoan: (data: Omit<Loan, "id" | "payments">) => void;
+  updateLoan: (
+    id: string,
+    data: Partial<Omit<Loan, "payments" | "id">>,
+  ) => void;
+  deleteLoan: (id: string) => void;
+  recordLoanPayment: (id: string, payment: Omit<LoanPayment, "id">) => void;
+  deleteLoanPayment: (id: string, paymentId: string) => void;
   captureNotice: PaymentReceipt | null;
   dismissCaptureNotice: () => void;
   setBudget: (budget: Budget) => void;
@@ -267,6 +294,8 @@ const defaultProfile: UserProfile = {
 };
 
 const defaultState: AppState = {
+  loans: [],
+  groupMemberships: {},
   budgets: [],
   incomes: [],
   paymentReviews: [],
@@ -323,6 +352,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const deviceId = data.deviceId || genId();
         const next = {
           ...data,
+          groupMemberships: { ...data.groupMemberships },
           deviceId,
           billGroups: data.billGroups.map((g) => ({
             ...g,
@@ -333,6 +363,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             revision: g.revision || 0,
           })),
         };
+        for (const group of next.billGroups) {
+          if (!next.groupMemberships[group.id]) {
+            const member = localGroupMember(group, {}, next.profile);
+            if (member) next.groupMemberships[group.id] = member;
+          }
+        }
         stateRef.current = next;
         setState(next);
         setLoaded(true);
@@ -390,6 +426,93 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [persist],
+  );
+  const setGroupMember = useCallback(
+    (groupId: string, member: string) =>
+      update((s) => {
+        if (
+          !s.billGroups.some(
+            (g) => g.id === groupId && g.members.includes(member),
+          )
+        )
+          return s;
+        return {
+          ...s,
+          groupMemberships: { ...s.groupMemberships, [groupId]: member },
+        };
+      }),
+    [update],
+  );
+  const addLoan = useCallback(
+    (data: Omit<Loan, "id" | "payments">) =>
+      update((s) => ({
+        ...s,
+        loans: [
+          loanSchema.parse({ ...data, id: genId(), payments: [] }),
+          ...s.loans,
+        ],
+      })),
+    [update],
+  );
+  const updateLoan = useCallback(
+    (id: string, data: Partial<Omit<Loan, "id" | "payments">>) =>
+      update((s) => ({
+        ...s,
+        loans: s.loans.map((l) =>
+          l.id === id ? loanSchema.parse({ ...l, ...data }) : l,
+        ),
+      })),
+    [update],
+  );
+  const deleteLoan = useCallback(
+    (id: string) =>
+      update((s) => ({ ...s, loans: s.loans.filter((l) => l.id !== id) })),
+    [update],
+  );
+  const recordLoanPayment = useCallback(
+    (id: string, payment: Omit<LoanPayment, "id">) =>
+      update((s) => {
+        const loan = s.loans.find((l) => l.id === id);
+        if (!loan || payment.date > localDate()) return s;
+        if (payment.activityId) {
+          const transaction = (
+            loan.kind === "borrowed" ? s.expenses : s.incomes
+          ).find((e) => e.id === payment.activityId);
+          if (
+            !transaction ||
+            transaction.amount !== payment.amount ||
+            transaction.date !== payment.date ||
+            s.loans.some((l) =>
+              l.payments.some((p) => p.activityId === payment.activityId),
+            )
+          )
+            return s;
+        }
+        return {
+          ...s,
+          loans: s.loans.map((l) =>
+            l.id === id
+              ? loanSchema.parse({
+                  ...l,
+                  payments: [...l.payments, { ...payment, id: genId() }],
+                })
+              : l,
+          ),
+        };
+      }),
+    [update],
+  );
+  const deleteLoanPayment = useCallback(
+    (id: string, paymentId: string) =>
+      update((s) => ({
+        ...s,
+        loans: s.loans.map((l) =>
+          l.id === id
+            ? { ...l, payments: l.payments.filter((p) => p.id !== paymentId) }
+            : l,
+        ),
+      })),
+    [update],
   );
   const setBudget = useCallback(
     (budget: Budget) =>
@@ -756,26 +879,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addBillGroup = useCallback(
     (group: Omit<BillGroup, "id" | "createdAt" | "expenses">) =>
-      update((s) => ({
-        ...s,
-        billGroups: [
-          {
-            ...group,
-            id: genId(),
-            createdAt: new Date().toISOString(),
-            expenses: [],
-            organizerId: s.deviceId,
-            memberIds: Object.fromEntries(
-              group.members.map((m) => [m, genId()]),
-            ),
-            revision: 0,
-            repayments: [],
-            proposals: [],
-            handledProposalIds: [],
-          },
-          ...s.billGroups,
-        ],
-      })),
+      update((s) => {
+        const id = genId();
+        const member = localGroupMember(
+          { ...group, id } as BillGroup,
+          {},
+          s.profile,
+        );
+        return {
+          ...s,
+          groupMemberships: member
+            ? { ...s.groupMemberships, [id]: member }
+            : s.groupMemberships,
+          billGroups: [
+            {
+              ...group,
+              id,
+              createdAt: new Date().toISOString(),
+              expenses: [],
+              organizerId: s.deviceId,
+              memberIds: Object.fromEntries(
+                group.members.map((m) => [m, genId()]),
+              ),
+              revision: 0,
+              repayments: [],
+              proposals: [],
+              handledProposalIds: [],
+            },
+            ...s.billGroups,
+          ],
+        };
+      }),
     [update],
   );
   const deleteBillGroup = useCallback(
@@ -843,14 +977,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   const totalInvestments = stockValue + cryptoValue + goldSilverValue;
 
-  const totalDebt = state.debts
-    .filter((d) => d.type === "debit" && d.status === "Pending")
-    .reduce((s, d) => s + d.amount, 0);
+  const obligations = linkedObligations(state);
+  const totalDebt =
+    obligations
+      .filter((d) => d.type === "debit" && d.status === "Pending")
+      .reduce((s, d) => s + Math.round(d.amount * 100), 0) / 100;
+  const totalCredit =
+    obligations
+      .filter((d) => d.type === "credit" && d.status === "Pending")
+      .reduce((s, d) => s + Math.round(d.amount * 100), 0) / 100;
 
   const totalSavings = state.profile.currentSavings;
 
   // Goal pots reserve existing money; they never create additional wealth.
-  const netWorth = summary.balance + totalInvestments - totalDebt;
+  const netWorth = summary.balance + totalInvestments + totalCredit - totalDebt;
 
   if (!loaded)
     return storageError ? (
@@ -862,8 +1002,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }}
       />
     ) : (
-      <View style={{ flex: 1, justifyContent: "center", padding: 24 }}>
-        <Text>Loading saved data…</Text>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#EFEDE3",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={{ width: 96, height: 96 }}
+          accessibilityLabel="Pro Financier"
+        />
       </View>
     );
 
@@ -871,6 +1022,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{
         ...state,
+        obligations,
+        totalCredit,
+        monthlyLoanPayments: summary.loanReserve,
+        setGroupMember,
+        addLoan,
+        updateLoan,
+        deleteLoan,
+        recordLoanPayment,
+        deleteLoanPayment,
         captureNotice,
         dismissCaptureNotice,
         setBudget,

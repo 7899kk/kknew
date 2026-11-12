@@ -43,7 +43,7 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
-    tabs={'Dashboard','Expenses','Activity','Dues','Goals','Split','Profile'}
+    tabs={'Home','Activity','Add','Insights','Loans'}
     nav_bounds=[]
     for candidate in root.iter('node'):
         if candidate.get('text') not in tabs:continue
@@ -88,10 +88,25 @@ def find(label,edit=False):
     raise AssertionError(f'Cannot find {label}')
 
 def tap(label,edit=False):
+    if not edit:
+        label={'Dashboard':'Home','Expenses':'Add'}.get(label,label)
+        if label in {'Goals','Split','Dues','Profile'}:
+            tap('Open settings')
+            return tap({'Split':'Bill split','Dues':'Debts & credits'}.get(label,label)) if label not in {'Goals','Profile'} else tap_menu(label)
+        if label=='Add expense' and match(ui(),'Amount',True):return
     node=find(label,edit)
     x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
     time.sleep(.8)
+    if label=='Home':
+        adb('shell','input','swipe','530','550','530','1500','350')
+        adb('shell','input','swipe','530','550','530','1500','350')
+        time.sleep(.4)
+
+def tap_menu(label):
+    node=find(label)
+    x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.8)
 
 def enter(label,value):
     tap(label,True)
@@ -110,7 +125,8 @@ def contains(text):
         root=ui()
         if any(text in node.get('text','') or text in node.get('content-desc','') for node in root.iter('node')):
             return
-        time.sleep(1)
+        adb('shell','input','swipe','530','1450','530','650','400')
+        time.sleep(.6)
     raise AssertionError(f'Missing expected UI value {text!r}')
 
 if __name__ == "__main__":
@@ -146,7 +162,6 @@ if __name__ == "__main__":
         save('expense-98500')
         tap('Goals')
         contains('Dream Bike')
-        contains('more for this dream')
         tap('Save 1000 toward Dream Bike')
         tap('Dashboard')
         contains('98,500')
@@ -176,7 +191,20 @@ if __name__ == "__main__":
         adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
         tap('Split');contains('Weekend');contains('Arun, Priya, Karthik');save('group-people-after-restart')
 
-        (evidence/'FINANCE-FLOW-PASSED.txt').write_text('Name and username entered once. Salary 100000 + savings 1000 = 101000. Expense 2500 => 98500. Goal reservation 1000 => available 97500, cash unchanged. Data persisted after restart.\n')
+        tap('Loans');tap('Add loan')
+        enter('Loan name','Bike');enter('Lender','Bank')
+        enter('Total balance to repay','12000');enter('Monthly payment','2000')
+        tap('Save loan');tap('Home');contains('95,500');save('loan-monthly-reserve')
+        tap('Loans');tap('Open loan Bike');tap('Record repayment')
+        # Default amount is the next installment, 2000; no cash transaction is created.
+        tap('Save repayment');contains('10,000');tap('Close')
+        tap('Home');contains('98,500');contains('97,500');save('loan-paid-cash-unchanged')
+        tap('Dues');contains('Bank');contains('10,000');save('loan-linked-dues')
+        adb('shell','am','force-stop','com.profinancer.app')
+        adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
+        tap('Loans');contains('Bike');contains('10,000');save('loan-restart-persisted')
+
+        (evidence/'FINANCE-FLOW-PASSED.txt').write_text('Name and username entered once. Salary 100000 + savings 1000 = 101000. Expense 2500 => 98500. Goal reservation 1000 => available 97500, cash unchanged. Data persisted after restart. Loan 12000 reserves monthly 2000, repayment changes dues to 10000 without changing cash; persists on restart.\n')
         print('Android finance flow passed')
     except Exception:
         save('finance-flow-failure')

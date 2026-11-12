@@ -28,15 +28,15 @@ export function Card({
       style={[
         {
           backgroundColor: colors.card,
-          borderRadius: 16,
+          borderRadius: 20,
           padding,
-          borderWidth: 1,
+          borderWidth: 0,
           borderColor: colors.border,
           shadowColor: "#000",
           shadowOpacity: 0.04,
           shadowRadius: 8,
           shadowOffset: { width: 0, height: 2 },
-          elevation: 2,
+          elevation: 0,
         },
         style,
       ]}
@@ -69,16 +69,16 @@ export function Button({
     variant === "primary"
       ? colors.primary
       : variant === "danger"
-      ? colors.destructive
-      : variant === "secondary"
-      ? colors.secondary
-      : "transparent";
+        ? colors.destructive
+        : variant === "secondary"
+          ? colors.secondary
+          : "transparent";
   const fg =
     variant === "primary"
       ? colors.primaryForeground
       : variant === "danger"
-      ? colors.destructiveForeground
-      : colors.foreground;
+        ? colors.destructiveForeground
+        : colors.foreground;
 
   return (
     <Pressable
@@ -93,7 +93,7 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
-          borderRadius: 12,
+          borderRadius: 26,
           paddingVertical: 14,
           paddingHorizontal: 20,
           alignItems: "center",
@@ -112,9 +112,7 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon && (
-            <Feather name={icon as any} size={18} color={fg} />
-          )}
+          {icon && <Feather name={icon as any} size={18} color={fg} />}
           <Text style={{ color: fg, fontWeight: "600", fontSize: 15 }}>
             {title}
           </Text>
@@ -135,6 +133,7 @@ export function Input({
   prefix,
   style,
   editable = true,
+  hideLabel = false,
 }: {
   label?: string;
   value: string;
@@ -145,11 +144,12 @@ export function Input({
   prefix?: string;
   style?: ViewStyle;
   editable?: boolean;
+  hideLabel?: boolean;
 }) {
   const colors = useColors();
   return (
     <View style={[{ marginBottom: 12 }, style]}>
-      {label && (
+      {label && !hideLabel && (
         <Text
           style={{
             fontSize: 13,
@@ -168,7 +168,7 @@ export function Input({
           flexDirection: "row",
           alignItems: "center",
           backgroundColor: colors.secondary,
-          borderRadius: 10,
+          borderRadius: 14,
           borderWidth: 1,
           borderColor: colors.border,
           paddingHorizontal: 14,
@@ -176,7 +176,13 @@ export function Input({
         }}
       >
         {prefix && (
-          <Text style={{ color: colors.mutedForeground, marginRight: 6, fontSize: 16 }}>
+          <Text
+            style={{
+              color: colors.mutedForeground,
+              marginRight: 6,
+              fontSize: 16,
+            }}
+          >
             {prefix}
           </Text>
         )}
@@ -187,7 +193,9 @@ export function Input({
           autoComplete="off"
           importantForAutofill="no"
           textContentType="none"
-          autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
+          autoCapitalize={
+            keyboardType === "email-address" ? "none" : "sentences"
+          }
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -198,8 +206,10 @@ export function Input({
           style={{
             flex: 1,
             color: colors.foreground,
-            fontSize: 16,
-            paddingVertical: 10,
+            fontSize: label === "Amount" ? 32 : 16,
+            fontFamily:
+              label === "Amount" ? "Inter_600SemiBold" : "Inter_400Regular",
+            paddingVertical: label === "Amount" ? 18 : 10,
             minHeight: multiline ? 80 : undefined,
           }}
         />
@@ -241,7 +251,9 @@ export function SectionHeader({
       </Text>
       {action && onAction && (
         <Pressable onPress={onAction}>
-          <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "600" }}>
+          <Text
+            style={{ color: colors.primary, fontSize: 14, fontWeight: "600" }}
+          >
             {action}
           </Text>
         </Pressable>
@@ -271,7 +283,8 @@ export function StatCard({
   style?: ViewStyle;
 }) {
   const colors = useColors();
-  const displayValue = value ?? (amount !== undefined ? formatCurrency(amount) : "—");
+  const displayValue =
+    value ?? (amount !== undefined ? formatCurrency(amount) : "—");
   return (
     <Card style={style}>
       {icon && color && (
@@ -279,7 +292,7 @@ export function StatCard({
           style={{
             width: 36,
             height: 36,
-            borderRadius: 10,
+            borderRadius: 14,
             backgroundColor: color + "22",
             alignItems: "center",
             justifyContent: "center",
@@ -289,7 +302,9 @@ export function StatCard({
           <Feather name={icon as any} size={18} color={color} />
         </View>
       )}
-      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 4 }}>
+      <Text
+        style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 4 }}
+      >
         {label}
       </Text>
       <Text
@@ -305,7 +320,9 @@ export function StatCard({
         {displayValue}
       </Text>
       {(subtitle ?? sub) && (
-        <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+        <Text
+          style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}
+        >
           {subtitle ?? sub}
         </Text>
       )}
@@ -414,7 +431,11 @@ export function EmptyState({
         {emoji ? (
           <Text style={{ fontSize: 28 }}>{emoji}</Text>
         ) : (
-          <Feather name={(icon ?? "inbox") as any} size={28} color={colors.mutedForeground} />
+          <Feather
+            name={(icon ?? "inbox") as any}
+            size={28}
+            color={colors.mutedForeground}
+          />
         )}
       </View>
       <Text
@@ -455,10 +476,22 @@ export function PillSelector<T extends string>({
 }) {
   const colors = useColors();
   return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 4,
+        backgroundColor: colors.card,
+        borderRadius: 26,
+        padding: 4,
+      }}
+    >
       {options.map((opt) => (
         <Pressable
           key={opt}
+          accessibilityRole="button"
+          accessibilityLabel={opt}
+          accessibilityState={{ selected: value === opt }}
           onPress={() => {
             Haptics.selectionAsync();
             onChange(opt);
@@ -467,14 +500,17 @@ export function PillSelector<T extends string>({
             paddingHorizontal: 14,
             paddingVertical: 8,
             borderRadius: 20,
-            backgroundColor: value === opt ? colors.primary : colors.secondary,
-            borderWidth: 1,
+            flexGrow: 1,
+            alignItems: "center",
+            backgroundColor: value === opt ? colors.primary : colors.card,
+            borderWidth: 0,
             borderColor: value === opt ? colors.primary : colors.border,
           }}
         >
           <Text
             style={{
-              color: value === opt ? colors.primaryForeground : colors.foreground,
+              color:
+                value === opt ? colors.primaryForeground : colors.foreground,
               fontSize: 13,
               fontWeight: "600",
             }}

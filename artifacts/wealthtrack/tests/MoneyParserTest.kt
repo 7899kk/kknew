@@ -1,3 +1,5 @@
+import expo.modules.moneynotifications.SmsReceipt
+import expo.modules.moneynotifications.SmsReceiptIdentity
 import expo.modules.moneynotifications.SmsPaymentParser
 import expo.modules.moneynotifications.MoneyParser
 import expo.modules.moneynotifications.fingerprint
@@ -103,5 +105,17 @@ fun main() {
   check(SmsPaymentParser.parse("AD-SBIINB-S","INR 200 debited from account XX1234")?.kind=="expense")
   check(SmsPaymentParser.parse("HDFCBK","INR 200 debited from account XX1234")?.kind=="expense")
   println("${smsCases.size + 5} bank SMS checks passed: direction, separate balances, no-reference, sender trust, malformed amounts, failed/pending/future payments and OTPs")
+  check(SmsReceiptIdentity.bank("VM-HDFCBK")==SmsReceiptIdentity.bank("AD-HDFCBN-S"))
+  check(SmsReceiptIdentity.account("A/c XX1234 credited INR 100")=="1234")
+  check(SmsReceiptIdentity.balance("Avl Bal INR 90,000.50")==90000.5)
+  val receipt=SmsReceipt("original","HDFC","1234",5000.0,1000.0,"income","REF1000001",1000000)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="same-ref",timestamp=1001000),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="repeat",reference="REF1000002",timestamp=1001000),listOf(receipt))?.id=="original")
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="new-credit",reference="REF1000003",balance=6000.0,timestamp=1001000),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="other-account",reference="REF1000004",account="5678",timestamp=1001000),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="other-bank",reference="REF1000005",bank="SBI",timestamp=1001000),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="later",reference="REF1000006",timestamp=1600001),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="no-ref",reference=null,timestamp=1001000),listOf(receipt))?.id=="original")
+  println("10 bank receipt identity checks passed: bank aliases, masked accounts, balance parsing, repeated alerts, distinct credits and review safety")
   println("${cases.size + 1} native parser cases and refund/dedup fingerprint regressions passed")
 }

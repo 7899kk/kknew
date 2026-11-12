@@ -27,6 +27,7 @@ object MoneyStore {
     }
   }
   @Synchronized fun pending(c:Context)=array(c,"pending")
+  @Synchronized fun recentReceipts(c:Context)=array(c,"receipts")
   @Synchronized fun observed(c:Context){commit(c,prefs(c).edit().putLong("lastObserved",System.currentTimeMillis()))}
   @Synchronized fun imported(c:Context){commit(c,prefs(c).edit().putLong("lastImported",System.currentTimeMillis()))}
   @Synchronized fun health(c:Context):Map<String,Any> {
@@ -56,7 +57,17 @@ object MoneyStore {
     val recent=JSONArray();for(i in maxOf(0,seen.length()-10000) until seen.length())recent.put(seen.getString(i))
     // Bounded metadata only; notification text is never retained.
     if(signatures.length()>10000){val keys=signatures.keys().asSequence().toList();keys.take(signatures.length()-10000).forEach{signatures.remove(it)}}
-    commit(c,p.edit().putString("pending_recovery",p.getString("pending","[]")).putString("seen_recovery",p.getString("seen","[]")).putString("pending",queue.toString()).putString("seen",recent.toString()).putString("signatures",signatures.toString()))
+    val edit=p.edit().putString("pending_recovery",p.getString("pending","[]")).putString("seen_recovery",p.getString("seen","[]")).putString("pending",queue.toString()).putString("seen",recent.toString()).putString("signatures",signatures.toString())
+    // Commit dedup metadata atomically with the queue; never keep an unqueued receipt.
+    if((event.optString("kind")=="income"||event.optString("kind")=="expense") && event.optString("bankKey").isNotBlank()) {
+      val receipts=array(c,"receipts")
+      val metadata=JSONObject()
+      for(key in listOf("id","bankKey","accountKey","balanceAfter","amount","kind","reference","timestamp"))if(event.has(key))metadata.put(key,event.get(key))
+      receipts.put(metadata)
+      val bounded=JSONArray();for(i in maxOf(0,receipts.length()-200) until receipts.length())bounded.put(receipts.getJSONObject(i))
+      edit.putString("receipts_recovery",p.getString("receipts","[]")).putString("receipts",bounded.toString())
+    }
+    commit(c,edit)
     return true
   }
   @Synchronized fun acknowledge(c:Context,ids:List<String>){

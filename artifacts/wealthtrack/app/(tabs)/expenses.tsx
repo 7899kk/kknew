@@ -1,8 +1,9 @@
+import { useLocalSearchParams } from "expo-router";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -15,7 +16,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Expense, ExpenseCategory, PaymentType, useApp } from "@/context/AppContext";
+import {
+  Expense,
+  ExpenseCategory,
+  PaymentType,
+  useApp,
+} from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
   Badge,
@@ -31,22 +37,41 @@ import {
 import { PieChart } from "@/components/PieChart";
 
 const CATEGORIES: ExpenseCategory[] = [
-  "Food", "Travel", "Rent", "EMI", "Shopping",
-  "Entertainment", "Medical", "Education", "Others",
+  "Food",
+  "Travel",
+  "Rent",
+  "EMI",
+  "Shopping",
+  "Entertainment",
+  "Medical",
+  "Education",
+  "Others",
 ];
 
 const PAYMENT_TYPES: PaymentType[] = ["UPI", "Card", "Cash", "Bank"];
 
 const CATEGORY_ICONS: Record<string, string> = {
-  Food: "coffee", Travel: "navigation", Rent: "home",
-  EMI: "calendar", Shopping: "shopping-bag", Entertainment: "film",
-  Medical: "heart", Education: "book", Others: "more-horizontal",
+  Food: "coffee",
+  Travel: "navigation",
+  Rent: "home",
+  EMI: "calendar",
+  Shopping: "shopping-bag",
+  Entertainment: "film",
+  Medical: "heart",
+  Education: "book",
+  Others: "more-horizontal",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Food: "#f59e0b", Travel: "#3b82f6", Rent: "#8b5cf6",
-  EMI: "#ef4444", Shopping: "#ec4899", Entertainment: "#06b6d4",
-  Medical: "#10b981", Education: "#f97316", Others: "#6b7280",
+  Food: "#f59e0b",
+  Travel: "#3b82f6",
+  Rent: "#8b5cf6",
+  EMI: "#ef4444",
+  Shopping: "#ec4899",
+  Entertainment: "#06b6d4",
+  Medical: "#10b981",
+  Education: "#f97316",
+  Others: "#6b7280",
 };
 
 type ViewMode = "All" | "Month" | "Year";
@@ -57,14 +82,17 @@ function today() {
 
 function nowTime() {
   return new Date().toLocaleTimeString("en-IN", {
-    hour: "2-digit", minute: "2-digit", hour12: true,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
   });
 }
 
 export default function ExpensesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { expenses, addExpense, updateExpense, deleteExpense, totalIncome } = useApp();
+  const { expenses, addExpense, updateExpense, deleteExpense, totalIncome } =
+    useApp();
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,6 +125,10 @@ export default function ExpensesScreen() {
     setShowModal(true);
   };
 
+  const params = useLocalSearchParams<{ compose?: string }>();
+  useEffect(() => {
+    if (params.compose) openAdd();
+  }, [params.compose]);
   const openEdit = (exp: Expense) => {
     setDate(exp.date);
     setTime(exp.time || "");
@@ -111,7 +143,13 @@ export default function ExpensesScreen() {
   };
 
   const save = () => {
-    if (!validMoney(amount) || !validDate(date)) { Alert.alert("Check expense", "Enter a positive amount and valid date (YYYY-MM-DD)."); return; }
+    if (!validMoney(amount) || !validDate(date)) {
+      Alert.alert(
+        "Check expense",
+        "Enter a positive amount and valid date (YYYY-MM-DD).",
+      );
+      return;
+    }
     const data: Partial<Expense> = {
       date,
       time: time || nowTime(),
@@ -119,7 +157,7 @@ export default function ExpensesScreen() {
       amount: Number(amount),
       paymentType,
       notes: notes.trim() || undefined,
-      ...(notes.trim()?{needsReason:false}:{}),
+      ...(notes.trim() ? { needsReason: false } : {}),
       merchant: merchant || undefined,
       upiRef: upiRef || undefined,
     };
@@ -157,16 +195,23 @@ export default function ExpensesScreen() {
       const db = `${b.date} ${b.time || "00:00"}`;
       return db.localeCompare(da);
     });
-    if (viewMode === "Month") return sorted.filter((e) => e.date.startsWith(currentMonth));
-    if (viewMode === "Year") return sorted.filter((e) => e.date.startsWith(currentYear));
+    if (viewMode === "Month")
+      return sorted.filter((e) => e.date.startsWith(currentMonth));
+    if (viewMode === "Year")
+      return sorted.filter((e) => e.date.startsWith(currentYear));
     return sorted;
   }, [expenses, viewMode, currentMonth, currentYear]);
 
-  const total = useMemo(() => filtered.reduce((s, e) => s + e.amount, 0), [filtered]);
+  const total = useMemo(
+    () => filtered.reduce((s, e) => s + e.amount, 0),
+    [filtered],
+  );
 
   const catMap = useMemo(() => {
     const m: Record<string, number> = {};
-    filtered.forEach((e) => { m[e.category] = (m[e.category] || 0) + e.amount; });
+    filtered.forEach((e) => {
+      m[e.category] = (m[e.category] || 0) + e.amount;
+    });
     return m;
   }, [filtered]);
 
@@ -210,7 +255,12 @@ export default function ExpensesScreen() {
 
             {/* Summary */}
             <Card style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
                 <View>
                   <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
                     Total Spent
@@ -228,11 +278,17 @@ export default function ExpensesScreen() {
                 </View>
                 {totalIncome > 0 && (
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                    <Text
+                      style={{ color: colors.mutedForeground, fontSize: 13 }}
+                    >
                       Budget Used
                     </Text>
                     <Text
-                      style={{ fontSize: 24, fontWeight: "700", color: colors.foreground }}
+                      style={{
+                        fontSize: 24,
+                        fontWeight: "700",
+                        color: colors.foreground,
+                      }}
                     >
                       {Math.round((total / totalIncome) * 100)}%
                     </Text>
@@ -243,7 +299,9 @@ export default function ExpensesScreen() {
                 <View style={{ marginTop: 12 }}>
                   <ProgressBar
                     progress={Math.min(total / totalIncome, 1)}
-                    color={total > totalIncome ? colors.expense : colors.primary}
+                    color={
+                      total > totalIncome ? colors.expense : colors.primary
+                    }
                     height={8}
                   />
                 </View>
@@ -253,7 +311,15 @@ export default function ExpensesScreen() {
             {/* Pie chart */}
             {pieSlices.length > 0 && (
               <Card style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground, marginBottom: 16, fontFamily: "Inter_700Bold" }}>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: colors.foreground,
+                    marginBottom: 16,
+                    fontFamily: "Inter_700Bold",
+                  }}
+                >
                   Spending by Category
                 </Text>
                 <PieChart
@@ -276,9 +342,14 @@ export default function ExpensesScreen() {
           />
         )}
         renderItem={({ item }) => (
-          <Pressable onPress={() => openEdit(item)} onLongPress={() => confirmDelete(item.id)}>
+          <Pressable
+            onPress={() => openEdit(item)}
+            onLongPress={() => confirmDelete(item.id)}
+          >
             <Card style={{ marginBottom: 10 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
                 <View
                   style={{
                     width: 44,
@@ -298,23 +369,58 @@ export default function ExpensesScreen() {
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.foreground }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: colors.foreground,
+                    }}
+                  >
                     {item.merchant || item.category}
                   </Text>
                   {item.merchant && (
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: colors.mutedForeground,
+                        marginTop: 1,
+                      }}
+                    >
                       {item.category}
                     </Text>
                   )}
-                  <View style={{ flexDirection: "row", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
-                    <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 6,
+                      marginTop: 3,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Feather
+                      name="calendar"
+                      size={11}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={{ fontSize: 12, color: colors.mutedForeground }}
+                    >
                       {item.date}
                     </Text>
                     {item.time ? (
                       <>
-                        <Feather name="clock" size={11} color={colors.mutedForeground} />
-                        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                        <Feather
+                          name="clock"
+                          size={11}
+                          color={colors.mutedForeground}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: colors.mutedForeground,
+                          }}
+                        >
                           {item.time}
                         </Text>
                       </>
@@ -326,13 +432,23 @@ export default function ExpensesScreen() {
                     />
                   </View>
                   {item.upiRef ? (
-                    <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: colors.mutedForeground,
+                        marginTop: 2,
+                      }}
+                    >
                       Ref: {item.upiRef}
                     </Text>
                   ) : null}
                   {item.notes ? (
                     <Text
-                      style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}
+                      style={{
+                        fontSize: 12,
+                        color: colors.mutedForeground,
+                        marginTop: 2,
+                      }}
                       numberOfLines={1}
                     >
                       {item.notes}
@@ -340,7 +456,13 @@ export default function ExpensesScreen() {
                   ) : null}
                 </View>
 
-                <Text style={{ fontSize: 16, fontWeight: "700", color: colors.expense }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: colors.expense,
+                  }}
+                >
                   -{formatCurrency(item.amount)}
                 </Text>
               </View>
@@ -360,7 +482,7 @@ export default function ExpensesScreen() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: colors.primary,
+          backgroundColor: colors.gold,
           alignItems: "center",
           justifyContent: "center",
           shadowColor: colors.primary,
@@ -370,7 +492,7 @@ export default function ExpensesScreen() {
           elevation: 8,
         }}
       >
-        <Feather name="plus" size={24} color="#fff" />
+        <Feather name="plus" size={24} color={colors.foreground} />
       </Pressable>
 
       {/* Add / Edit Modal */}
@@ -406,12 +528,20 @@ export default function ExpensesScreen() {
             >
               {editingId ? "Edit Expense" : "Add Expense"}
             </Text>
-            <Pressable onPress={() => { setShowModal(false); reset(); }}>
+            <Pressable
+              onPress={() => {
+                setShowModal(false);
+                reset();
+              }}
+            >
               <Feather name="x" size={24} color={colors.mutedForeground} />
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {/* Date & Time side by side */}
             <View style={{ flexDirection: "row", gap: 12 }}>
               <View style={{ flex: 1.4 }}>

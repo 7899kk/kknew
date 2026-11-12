@@ -1,10 +1,6 @@
-/**
- * Animated SVG Donut Pie Chart — Pro Financier
- * Uses react-native-svg for crisp native rendering.
- * useNativeDriver: false for cross-platform web + native compat.
- */
-import React, { useEffect, useRef } from "react";
-import { Animated, Platform, Text, useWindowDimensions, View } from "react-native";
+/** SVG spending donut using confirmed ledger categories. */
+import React from "react";
+import { Text, useWindowDimensions, View } from "react-native";
 import { G, Path, Svg } from "react-native-svg";
 import { useColors } from "@/hooks/useColors";
 import { formatCurrency } from "@/components/UI";
@@ -74,33 +70,6 @@ export function PieChart({
   const total = slices.reduce((s, sl) => s + sl.value, 0);
   const nonEmpty = slices.filter((sl) => sl.value > 0);
 
-  // Cross-platform fade + scale in — useNativeDriver:false works on both web and native
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.85)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 420,
-        useNativeDriver: Platform.OS !== "web",
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 380,
-        useNativeDriver: Platform.OS !== "web",
-      }),
-    ]).start();
-  }, []);
-
-  if (total === 0 || nonEmpty.length === 0) {
-    return (
-      <View style={{ alignItems: "center", paddingVertical: 24 }}>
-        <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>No data to display</Text>
-      </View>
-    );
-  }
-
   let currentAngle = 0;
   const paths = nonEmpty.map((sl) => {
     const startAngle = currentAngle;
@@ -112,16 +81,35 @@ export function PieChart({
   const displayTotal = centerValue ?? total;
 
   return (
-    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+    <View>
       <View style={{ alignItems: "center" }}>
         {/* SVG Donut */}
-        <View style={{ position: "relative", width: chartSize, height: chartSize }}>
-          <Svg width={chartSize} height={chartSize} viewBox={`0 0 ${chartSize} ${chartSize}`}>
+        <View
+          style={{ position: "relative", width: chartSize, height: chartSize }}
+        >
+          <Svg
+            width={chartSize}
+            height={chartSize}
+            viewBox={`0 0 ${chartSize} ${chartSize}`}
+          >
             <G>
+              {total === 0 && (
+                <Path
+                  d={arcPath(cx, cy, outerR, innerR, 0, 359.99)}
+                  fill={colors.muted}
+                />
+              )}
               {paths.map((sl, i) => (
                 <Path
                   key={i}
-                  d={arcPath(cx, cy, outerR, innerR, sl.startAngle, sl.endAngle)}
+                  d={arcPath(
+                    cx,
+                    cy,
+                    outerR,
+                    innerR,
+                    sl.startAngle,
+                    sl.endAngle,
+                  )}
                   fill={sl.color}
                   strokeWidth={1.5}
                   stroke={colors.background}
@@ -133,18 +121,23 @@ export function PieChart({
           <View
             style={{
               position: "absolute",
-              top: 0, left: 0, right: 0, bottom: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{
-              fontSize: 11,
-              color: colors.mutedForeground,
-              fontWeight: "600",
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-            }}>
+            <Text
+              style={{
+                fontSize: 11,
+                color: colors.mutedForeground,
+                fontWeight: "600",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
               {centerLabel}
             </Text>
             <Text
@@ -168,15 +161,47 @@ export function PieChart({
         {showLegend && (
           <View style={{ width: "100%", marginTop: 16, gap: 8 }}>
             {paths.map((sl, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: sl.color }} />
-                <Text style={{ flex: 1, color: colors.foreground, fontSize: 13, fontWeight: "500" }}>
+              <View
+                key={i}
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 4,
+                    backgroundColor: sl.color,
+                  }}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: colors.foreground,
+                    fontSize: 13,
+                    fontWeight: "500",
+                  }}
+                >
                   {sl.label}
                 </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, minWidth: 36, textAlign: "right" }}>
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: 12,
+                    minWidth: 36,
+                    textAlign: "right",
+                  }}
+                >
                   {total > 0 ? Math.round((sl.value / total) * 100) : 0}%
                 </Text>
-                <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700", minWidth: 80, textAlign: "right" }}>
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontSize: 13,
+                    fontWeight: "700",
+                    minWidth: 80,
+                    textAlign: "right",
+                  }}
+                >
                   {formatCurrency(sl.value)}
                 </Text>
               </View>
@@ -184,6 +209,6 @@ export function PieChart({
           </View>
         )}
       </View>
-    </Animated.View>
+    </View>
   );
 }

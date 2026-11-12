@@ -1,14 +1,9 @@
+import { useLocalSearchParams } from "expo-router";
+import { localGroupMember } from "@/utils/obligations";
 import * as Clipboard from "expo-clipboard";
 import { confirmAction } from "@/utils/dialogs";
-import React, { useState } from "react";
-import {
-  Alert,
-  Modal,
-  ScrollView,
-  Share,
-  Text,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Modal, ScrollView, Share, Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, BillGroup } from "@/context/AppContext";
@@ -51,6 +46,10 @@ export default function BillSplitScreen() {
   const [mapping, setMapping] = useState<Record<string, string>>({}),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const params = useLocalSearchParams<{ groupId?: string }>();
+  useEffect(() => {
+    if (params.groupId) setSelected(params.groupId);
+  }, [params.groupId]);
   const g = app.billGroups.find((g) => g.id === selected);
   const run = async (fn: () => Promise<unknown> | unknown) => {
     setBusy(true);
@@ -256,6 +255,24 @@ export default function BillSplitScreen() {
             <Text style={{ color: colors.foreground }}>
               {g.members.join(" · ")}
             </Text>
+            <Card>
+              <Text
+                style={{
+                  color: colors.mutedForeground,
+                  fontSize: 12,
+                  marginBottom: 10,
+                }}
+              >
+                You in this group
+              </Text>
+              <PillSelector
+                options={g.members}
+                value={
+                  localGroupMember(g, app.groupMemberships, app.profile) || ""
+                }
+                onChange={(member) => app.setGroupMember(g.id, member)}
+              />
+            </Card>
             <Button
               title="View group summary"
               disabled={busy}

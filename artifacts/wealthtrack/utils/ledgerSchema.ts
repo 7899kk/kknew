@@ -42,8 +42,17 @@ export const expenseSchema = z.object({
   captureId: id.optional(),
   source: optionalText,
   needsReason: z.boolean().optional(),
+  bankKey: optionalText,
+  accountKey: optionalText,
+  balanceAfter: money.optional(),
+  possibleDuplicateOf: id.optional(),
 });
 export const incomeSchema = z.object({
+  bankKey: optionalText,
+  accountKey: optionalText,
+  balanceAfter: money.optional(),
+  possibleDuplicateOf: id.optional(),
+
   id,
   date,
   amount: positiveMoney,
@@ -142,6 +151,47 @@ export const budgetSchema = z.object({
   limit: positiveMoney,
 });
 export type Budget = z.infer<typeof budgetSchema>;
+export const loanPaymentSchema = z.object({
+  id,
+  date,
+  amount: positiveMoney,
+  activityId: id.optional(),
+});
+export const loanSchema = z
+  .object({
+    id,
+    name: text.min(1),
+    party: text.min(1),
+    kind: z.enum(["borrowed", "lent"]),
+    principal: positiveMoney,
+    monthlyPayment: positiveMoney,
+    firstDueDate: date,
+    payments: z.array(loanPaymentSchema).max(10000).default([]),
+  })
+  .superRefine((loan, c) => {
+    if (
+      Math.ceil(
+        Math.round(loan.principal * 100) /
+          Math.round(loan.monthlyPayment * 100),
+      ) > 1200
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Use a repayment plan of at most 1200 months",
+      });
+    if (
+      loan.payments.reduce((s, p) => s + Math.round(p.amount * 100), 0) >
+      Math.round(loan.principal * 100)
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Payments exceed the loan balance",
+      });
+    if (new Set(loan.payments.map((p) => p.id)).size !== loan.payments.length)
+      c.addIssue({ code: "custom", message: "Duplicate loan payment" });
+  });
+export type Loan = z.infer<typeof loanSchema>;
+export type LoanPayment = z.infer<typeof loanPaymentSchema>;
 export const ledgerSchema = z
   .object({
     profile: z.object({
@@ -170,6 +220,11 @@ export const ledgerSchema = z
           .refine((n) => Number.isFinite(new Date(n).getTime())),
         reference: z.string().nullable().optional(),
         conflict: z.boolean().optional(),
+        bankKey: optionalText,
+        accountKey: optionalText,
+        balanceAfter: money.optional(),
+        possibleDuplicateOf: id.optional(),
+        directionHint: z.enum(["income", "expense"]).optional(),
       }),
     ),
     autoExpenses: z.array(
@@ -246,6 +301,8 @@ export const ledgerSchema = z
     billGroups: z.array(groupSchema),
     budgets: z.array(budgetSchema).default([]),
     deviceId: id.optional(),
+    loans: z.array(loanSchema).max(1000).default([]),
+    groupMemberships: z.record(id).default({}),
   })
   .superRefine((s, c) => {
     for (const key of [
@@ -259,10 +316,20 @@ export const ledgerSchema = z
       "goals",
       "billGroups",
       "budgets",
+      "loans",
     ] as const) {
       if (new Set(s[key].map((x) => x.id)).size !== s[key].length)
         c.addIssue({ code: "custom", message: "Duplicate record IDs" });
     }
+    const activityIds = s.loans.flatMap((l) =>
+      l.payments.map((p) => p.activityId).filter((id): id is string => !!id),
+    );
+    if (new Set(activityIds).size !== activityIds.length)
+      c.addIssue({
+        code: "custom",
+        message:
+          "An Activity transaction can be matched to only one loan payment",
+      });
     if (
       new Set(s.budgets.map((b) => b.month + ":" + b.category)).size !==
       s.budgets.length
@@ -280,6 +347,9 @@ const monetaryKeys = new Set([
   "targetAmount",
   "savedAmount",
   "limit",
+  "principal",
+  "monthlyPayment",
+  "balanceAfter",
 ]);
 function convert(value: unknown, encode: boolean): unknown {
   if (Array.isArray(value)) return value.map((v) => convert(v, encode));
@@ -298,14 +368,14 @@ function convert(value: unknown, encode: boolean): unknown {
 }
 export function encodeLedger(value: unknown) {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     unit: "paise",
     ledger: convert(ledgerSchema.parse(value), true),
   });
 }
 export function decodeLedger(raw: string) {
   const v = JSON.parse(raw);
-  if (v.version !== 1 || v.unit !== "paise")
+  if (![1, 2].includes(v.version) || v.unit !== "paise")
     throw Error("Unsupported ledger version");
   return ledgerSchema.parse(convert(v.ledger, false));
 }

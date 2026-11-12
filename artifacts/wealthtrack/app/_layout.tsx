@@ -1,3 +1,4 @@
+import { StatusBar } from "expo-status-bar";
 import { TrackingSettings } from "@/components/TrackingSettings";
 import { PaymentToast } from "@/components/PaymentToast";
 import { useFonts } from "expo-font";
@@ -33,6 +34,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="onboarding"
@@ -67,6 +69,7 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <AppProvider>
+                  <StatusBar style="dark" />
                   <RootLayoutNav />
                   <TrackingSettings automatic />
                   <PaymentToast />

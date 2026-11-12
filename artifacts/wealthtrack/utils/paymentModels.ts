@@ -7,6 +7,11 @@ export type CapturedPayment = {
   timestamp: number;
   reference?: string | null;
   conflict?: boolean;
+  bankKey?: string;
+  accountKey?: string;
+  balanceAfter?: number;
+  possibleDuplicateOf?: string;
+  directionHint?: "income" | "expense";
 };
 export type DebitReasonReply = {
   id: string;
@@ -52,6 +57,11 @@ export const paymentEventSchema = z.union([
       .refine((n) => Number.isFinite(new Date(n).getTime())),
     reference: z.string().max(100).nullable().optional(),
     conflict: z.boolean().optional(),
+    bankKey: z.string().max(100).optional(),
+    accountKey: z.string().max(100).optional(),
+    balanceAfter: z.number().finite().nonnegative().max(1e12).optional(),
+    possibleDuplicateOf: eventId.optional(),
+    directionHint: z.enum(["income", "expense"]).optional(),
   }),
 ]);
 export function parsePaymentBatch(raw: string): PaymentEvent[] {

@@ -15,6 +15,7 @@ type PaymentState = {
 export function applyCapturedPayments<T extends PaymentState>(
   previous: T,
   events: PaymentEvent[],
+  confirmedReviewId?: string,
 ): T {
   let next = previous;
   const seen = new Set(previous.capturedIds);
@@ -120,8 +121,39 @@ export function applyCapturedPayments<T extends PaymentState>(
         continue;
       }
     }
+    if (
+      event.id !== confirmedReviewId &&
+      (event.kind === "income" || event.kind === "expense") &&
+      event.bankKey
+    ) {
+      const candidates = event.kind === "income" ? next.incomes : next.expenses;
+      const earlier = candidates.find(
+        (old) =>
+          old.captureId &&
+          old.bankKey === event.bankKey &&
+          old.amount === event.amount &&
+          Math.abs((old.timestamp || 0) - event.timestamp) <= 600000 &&
+          !(
+            old.accountKey &&
+            event.accountKey &&
+            old.accountKey !== event.accountKey
+          ) &&
+          !(
+            old.balanceAfter !== undefined &&
+            event.balanceAfter !== undefined &&
+            old.balanceAfter !== event.balanceAfter
+          ),
+      );
+      if (earlier) {
+        event.directionHint = event.kind;
+        event.kind = "review";
+        event.possibleDuplicateOf = earlier.id;
+      }
+    }
     seen.add(event.id);
-    const source = event.source.startsWith("sms:") ? "Bank SMS · " + event.source.slice(4) : sourceNames[event.source] || event.source;
+    const source = event.source.startsWith("sms:")
+      ? "Bank SMS · " + event.source.slice(4)
+      : sourceNames[event.source] || event.source;
     if (event.kind === "expense") {
       next = {
         ...next,
@@ -130,6 +162,9 @@ export function applyCapturedPayments<T extends PaymentState>(
             id: event.id,
             captureId: event.id,
             source,
+            bankKey: event.bankKey,
+            accountKey: event.accountKey,
+            balanceAfter: event.balanceAfter,
             date: localDate,
             timestamp: event.timestamp,
             time: date.toLocaleTimeString("en-GB", {
@@ -162,6 +197,9 @@ export function applyCapturedPayments<T extends PaymentState>(
             captureId: event.id,
             reference: event.reference,
             source,
+            bankKey: event.bankKey,
+            accountKey: event.accountKey,
+            balanceAfter: event.balanceAfter,
             date: localDate,
             timestamp: event.timestamp,
             time: date.toLocaleTimeString("en-GB", {
@@ -238,6 +276,7 @@ export function resolveCapturedPayment<T extends PaymentState>(
   const imported = applyCapturedPayments(
     { ...next, capturedIds: next.capturedIds.filter((item) => item !== id) },
     [{ ...event, amount: value, kind, conflict: false }],
+    id,
   );
   if (kind === "income")
     imported.incomes = imported.incomes.map((item) =>

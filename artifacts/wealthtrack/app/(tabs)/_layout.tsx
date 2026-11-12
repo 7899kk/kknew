@@ -1,187 +1,85 @@
-import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
-import { useColors } from "@/hooks/useColors";
+import { Tabs, router, type Href } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Dashboard</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="expenses">
-        <Icon sf={{ default: "creditcard", selected: "creditcard.fill" }} />
-        <Label>Expenses</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="activity">
-        <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
-        <Label>Activity</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="debts">
-        <Icon sf={{ default: "exclamationmark.circle", selected: "exclamationmark.circle.fill" }} />
-        <Label>Dues</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="goals">
-        <Icon sf={{ default: "target", selected: "target" }} />
-        <Label>Goals</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="billsplit">
-        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-        <Label>Split</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
-function ClassicTabLayout() {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const isIOS = Platform.OS === "ios";
-  const isWeb = Platform.OS === "web";
-
+import { useColors } from "@/hooks/useColors";
+export default function TabLayout() {
+  const c = useColors(),
+    insets = useSafeAreaInsets();
+  const items: {
+    name: string;
+    title: string;
+    icon: React.ComponentProps<typeof Feather>["name"];
+  }[] = [
+    { name: "index", title: "Home", icon: "home" },
+    { name: "activity", title: "Activity", icon: "file-text" },
+    { name: "expenses", title: "Add", icon: "plus" },
+    { name: "insights", title: "Insights", icon: "bar-chart-2" },
+    { name: "loans", title: "Loans", icon: "credit-card" },
+  ];
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
+        tabBarActiveTintColor: c.foreground,
+        tabBarInactiveTintColor: c.mutedForeground,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          elevation: 0,
-          height: isWeb ? 84 : 64 + insets.bottom,
-          paddingBottom: isWeb ? 34 : 8 + insets.bottom,
+          backgroundColor: c.card,
+          borderTopWidth: 0,
+          height: Platform.OS === "web" ? 76 : 64 + insets.bottom,
+          paddingBottom: Platform.OS === "web" ? 16 : 8 + insets.bottom,
+          paddingTop: 7,
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
-          ) : null,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "600",
-          fontFamily: "Inter_600SemiBold",
-        },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="house" tintColor={color} size={22} />
-            ) : (
-              <Feather name="home" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="expenses"
-        options={{
-          title: "Expenses",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="creditcard" tintColor={color} size={22} />
-            ) : (
-              <Feather name="credit-card" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="activity"
-        options={{
-          title: "Activity",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="list.bullet" tintColor={color} size={22} />
-            ) : (
-              <Feather name="activity" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="debts"
-        options={{
-          title: "Dues",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="exclamationmark.circle" tintColor={color} size={22} />
-            ) : (
-              <Feather name="alert-circle" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="goals"
-        options={{
-          title: "Goals",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="target" tintColor={color} size={22} />
-            ) : (
-              <Feather name="target" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="billsplit"
-        options={{
-          title: "Split",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person.2" tintColor={color} size={22} />
-            ) : (
-              <Feather name="users" size={20} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person" tintColor={color} size={22} />
-            ) : (
-              <Feather name="user" size={20} color={color} />
-            ),
-        }}
-      />
+      {items.map((item) => (
+        <Tabs.Screen
+          key={item.name}
+          name={item.name}
+          listeners={
+            item.name === "expenses"
+              ? {
+                  tabPress: (e) => {
+                    e.preventDefault();
+                    router.navigate({
+                      pathname: "/(tabs)/expenses",
+                      params: { compose: String(Date.now()) },
+                    } as Href);
+                  },
+                }
+              : undefined
+          }
+          options={{
+            title: item.title,
+            tabBarIcon: ({ color }) =>
+              item.name === "expenses" ? (
+                <View
+                  style={{
+                    height: 43,
+                    width: 43,
+                    borderRadius: 23,
+                    backgroundColor: c.gold,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: -14,
+                    borderWidth: 5,
+                    borderColor: c.background,
+                  }}
+                >
+                  <Feather name="plus" size={21} color={c.foreground} />
+                </View>
+              ) : (
+                <Feather name={item.icon} size={19} color={color} />
+              ),
+          }}
+        />
+      ))}
+      {["debts", "goals", "billsplit", "profile"].map((name) => (
+        <Tabs.Screen key={name} name={name} options={{ href: null }} />
+      ))}
     </Tabs>
   );
 }
-
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
-}
-
-const styles = StyleSheet.create({});

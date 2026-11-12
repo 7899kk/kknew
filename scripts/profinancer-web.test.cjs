@@ -16,8 +16,42 @@ const initial = {
     currentSavings: 20000,
     onboardingComplete: true,
   },
-  expenses: [],
-  incomes: [],
+  expenses: [
+    {
+      id: "fixture-payment",
+      date: new Date().toISOString().slice(0, 10),
+      amount: 500,
+      category: "EMI",
+      paymentType: "Bank",
+      notes: "Bike repayment",
+      merchant: "Bank",
+    },
+    {
+      id: "old-expense",
+      date: (() => {
+        const now = new Date();
+        now.setDate(1);
+        now.setMonth(now.getMonth() - 1);
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-05`;
+      })(),
+      amount: 100,
+      category: "Travel",
+      paymentType: "Cash",
+    },
+  ],
+  incomes: [
+    {
+      id: "fixture-credit",
+      date: (() => {
+        const now = new Date();
+        now.setDate(Math.max(1, now.getDate() - 1));
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      })(),
+      amount: 500,
+      name: "Gift",
+      category: "Gift",
+    },
+  ],
   autoExpenses: [],
   debts: [],
   stocks: [],
@@ -86,6 +120,30 @@ const server = http.createServer((req, res) => {
     return p;
   }
   const button = (p, name) => p.getByRole("button", { name, exact: true });
+  async function section(p, name) {
+    const main = {
+      Dashboard: "Home",
+      Home: "Home",
+      Activity: "Activity",
+      Expenses: "Add",
+      Insights: "Insights",
+      Loans: "Loans",
+    };
+    if (main[name]) {
+      await p.getByRole("tab", { name: new RegExp(main[name]) }).click();
+      return;
+    }
+    await button(p, "Open settings").click();
+    await button(
+      p,
+      {
+        Dues: "Debts & credits",
+        Split: "Bill split",
+        Goals: "Goals",
+        Profile: "Profile",
+      }[name],
+    ).click();
+  }
   const fill = async (p, label, value) => {
     const input = p.getByLabel(label, { exact: true });
     await input.fill(value);
@@ -106,7 +164,11 @@ const server = http.createServer((req, res) => {
   }
   try {
     const owner = await newUser();
-    await expect(owner.getByText("₹70,000", { exact: true })).toBeVisible();
+    await expect(
+      button(owner, "Open balance details").getByText("₹70,000", {
+        exact: true,
+      }),
+    ).toBeVisible();
     await owner.screenshot({
       path: path.join(temp, "home.png"),
       fullPage: true,
@@ -138,21 +200,20 @@ const server = http.createServer((req, res) => {
       fullPage: true,
     });
     await overview.click();
-    await button(owner, "View expenses").click();
+
     await expect(
       owner.getByText("Total expenses", { exact: true }),
     ).toBeVisible();
     await button(owner, "Close").click();
-    for (const tab of ["Dues", "Goals", "Profile"]) {
-      await owner.getByRole("tab", { name: new RegExp(tab) }).click();
+    for (const name of ["Dues", "Goals", "Profile"]) {
+      await section(owner, name);
+      const header = button(owner, "Open settings").locator("..");
+      await expect(header.getByText("Hi, Test", { exact: true })).toBeVisible();
       await expect(
-        owner.getByText("Hi, Test", { exact: true }).last(),
-      ).toBeVisible();
-      await expect(
-        owner.getByText("PRO FINANCIER", { exact: true }).last(),
+        header.getByText("Pro Financier", { exact: true }),
       ).toBeVisible();
     }
-    await owner.getByRole("tab", { name: /Dashboard/ }).click();
+    await section(owner, "Insights");
     await button(owner, "Open budgets and reports").click();
     await fill(owner, "Limit (INR)", "1000");
     await button(owner, "Save monthly limit").click();
@@ -163,7 +224,7 @@ const server = http.createServer((req, res) => {
     await expect(owner.getByLabel("Limit (INR)", { exact: true })).toHaveCount(
       0,
     );
-    await owner.getByRole("tab", { name: /Split/ }).click();
+    await section(owner, "Split");
     await button(owner, "Create group").click();
     await fill(owner, "Group name", "Trip");
     await fill(owner, "Members, separated by commas", "A, B, C");
@@ -173,6 +234,11 @@ const server = http.createServer((req, res) => {
     );
     await expect(button(owner, "Open group")).toBeVisible();
     await button(owner, "Open group").click();
+    await owner
+      .getByText("You in this group", { exact: true })
+      .locator("..")
+      .getByRole("button", { name: "A", exact: true })
+      .click();
     await button(owner, "Add expense").click();
     await fill(owner, "Description", "Dinner");
     await fill(owner, "Amount (INR)", "300");
@@ -201,8 +267,11 @@ const server = http.createServer((req, res) => {
       () => button(owner, "Share group with friends").click(),
       "group.json",
     );
+    expect(fs.readFileSync(groupFile, "utf8")).not.toContain(
+      "groupMemberships",
+    );
     const friend = await newUser();
-    await friend.getByRole("tab", { name: /Split/ }).click();
+    await section(friend, "Split");
     await importGroup(friend, groupFile);
     await expect(button(friend, "Open group")).toBeVisible();
     await button(friend, "Open group").click();
@@ -225,7 +294,73 @@ const server = http.createServer((req, res) => {
     await approval.getByText("B", { exact: true }).click();
     await button(owner, "Approve update").click();
     await expect(owner.getByText("Taxi · ₹60", { exact: false })).toBeVisible();
-    await owner.getByRole("tab", { name: /Profile/ }).click();
+    await section(owner, "Dues");
+    await button(owner, "Owed to you").click();
+    await expect(
+      owner.getByRole("button", { name: "Open C Trip", exact: true }),
+    ).toContainText("₹80");
+    await section(owner, "Loans");
+    await button(owner, "Add loan").click();
+    await fill(owner, "Loan name", "Bike loan");
+    await fill(owner, "Lender", "Bank");
+    await fill(owner, "Total balance to repay", "12000");
+    await fill(owner, "Monthly payment", "2000");
+    await button(owner, "Save loan").click();
+    await expect(button(owner, "Open loan Bike loan")).toBeVisible();
+    await section(owner, "Home");
+    await expect(button(owner, "Open monthly loan payments")).toContainText(
+      "₹2,000",
+    );
+    await expect(button(owner, "Open available balance details")).toContainText(
+      "₹68,000",
+    );
+    await section(owner, "Loans");
+    await button(owner, "Open loan Bike loan").click();
+    await button(owner, "Record repayment").click();
+    await fill(owner, "Payment amount", "500");
+    await button(
+      owner,
+      `${new Date().toISOString().slice(0, 10)} · Bike repayment`,
+    ).click();
+    await button(owner, "Save repayment").click();
+    await expect(
+      owner.getByText("Matched in Activity", { exact: true }),
+    ).toBeVisible();
+    await button(owner, "Close").click();
+    await section(owner, "Home");
+    await expect(button(owner, "Open balance details")).toContainText(
+      "₹70,000",
+    );
+    await expect(button(owner, "Open available balance details")).toContainText(
+      "₹68,500",
+    );
+    await section(owner, "Dues");
+    await expect(
+      owner.getByRole("button", { name: "Open Bank Bike loan", exact: true }),
+    ).toContainText("₹11,500");
+    await button(owner, "Paid").click();
+    await expect(
+      owner.getByRole("button", { name: "Open Bank Bike loan", exact: true }),
+    ).toContainText("₹500");
+    await section(owner, "Activity");
+    await expect(
+      owner.getByRole("button", {
+        name: "Edit expense Bike repayment",
+        exact: true,
+      }),
+    ).toHaveCount(1);
+    await button(owner, "Dues").click();
+    await expect(
+      owner.getByText("Bank · Bike loan", { exact: true }).first(),
+    ).toBeVisible();
+    await owner.reload();
+    await section(owner, "Loans");
+    await expect(button(owner, "Open loan Bike loan")).toContainText("₹11,500");
+    await owner.screenshot({
+      path: path.join(temp, "loans.png"),
+      fullPage: true,
+    });
+    await section(owner, "Profile");
     const photoPicker = owner.waitForEvent("filechooser");
     await button(owner, "Change profile photo").click();
     await (
@@ -282,7 +417,7 @@ const server = http.createServer((req, res) => {
       owner.getByLabel("Backup password", { exact: true }),
     ).toHaveCount(0);
     await expect(button(owner, "Export encrypted backup")).toBeVisible();
-    await owner.getByRole("tab", { name: /Split/ }).click();
+    await section(owner, "Split");
     if (await button(owner, "Open group").count())
       await button(owner, "Open group").click();
     await expect(owner.getByText("Taxi · ₹60", { exact: false })).toBeVisible();
@@ -295,7 +430,7 @@ const server = http.createServer((req, res) => {
     });
     expect(errors).toEqual([]);
     console.log(
-      "Browser checks passed: legacy migration, budgets, groups, repayments/restart, snapshots, friend proposals/approval, encrypted export, wrong password and confirmed restore.",
+      "Browser checks passed: ivory dashboard/graphs/details, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
     );
     console.log("Evidence:", temp);
   } finally {

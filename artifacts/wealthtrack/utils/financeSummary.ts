@@ -1,3 +1,5 @@
+import { monthlyLoanReserve, plannedLoanCost } from "./loans";
+import type { Loan } from "./ledgerSchema";
 import { localDate, monthlyTotals, validDate } from "./financeValidation";
 import type {
   AutoExpense,
@@ -13,6 +15,7 @@ type Ledger = {
   expenses: Expense[];
   autoExpenses: AutoExpense[];
   goals: SavingsGoal[];
+  loans?: Loan[];
 };
 const paisa = (amount: number) =>
   Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : 0;
@@ -34,20 +37,23 @@ export function financeSummary(state: Ledger, month = localDate().slice(0, 7)) {
       .filter((item) => item.isActive)
       .map((item) => item.amount),
   );
+  const loanReserve = monthlyLoanReserve(state.loans, month);
   const goalSavings = total(state.goals.map((item) => item.savedAmount));
   const balance =
     (paisa(state.profile.currentSavings) + paisa(income) - paisa(expenses)) /
     100;
   const availableBalance =
-    Math.round((balance - goalSavings - recurring) * 100) / 100;
+    Math.round((balance - goalSavings - recurring - loanReserve) * 100) / 100;
   return {
     income,
     expenses,
     recurring,
+    loanReserve,
     goalSavings,
     balance,
     availableBalance,
-    monthlySurplus: Math.round((income - expenses - recurring) * 100) / 100,
+    monthlySurplus:
+      Math.round((income - expenses - recurring - loanReserve) * 100) / 100,
   };
 }
 
@@ -132,16 +138,34 @@ export function nextMonthSavingsPlan(state: Ledger, today = localDate()) {
   );
   const summary = financeSummary(state, referenceMonth);
   // In the first month, extrapolate spending through month end rather than overstate savings.
+  const matchedLoanExpenses = new Set(
+    (state.loans || [])
+      .filter((l) => l.kind === "borrowed")
+      .flatMap((l) => l.payments.map((p) => p.activityId).filter(Boolean)),
+  );
+  const ordinaryExpenses = total(
+    state.expenses
+      .filter(
+        (e) =>
+          e.date.startsWith(referenceMonth) && !matchedLoanExpenses.has(e.id),
+      )
+      .map((e) => e.amount),
+  );
   const projectedExpenses = completed
-    ? summary.expenses
+    ? ordinaryExpenses
     : Math.round(
-        ((summary.expenses * new Date(year, month, 0).getDate()) / day) * 100,
+        ((ordinaryExpenses * new Date(year, month, 0).getDate()) / day) * 100,
       ) / 100;
+  const targetLoanCost = plannedLoanCost(state.loans, targetMonth);
   const surplus = hasData
     ? Math.max(
         0,
         Math.round(
-          (summary.income - projectedExpenses - summary.recurring) * 100,
+          (summary.income -
+            projectedExpenses -
+            summary.recurring -
+            targetLoanCost) *
+            100,
         ),
       )
     : 0;

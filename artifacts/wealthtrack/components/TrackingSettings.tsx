@@ -98,7 +98,7 @@ export function TrackingSettings({
           }}
           style={{ padding: 12 }}
         >
-          <Feather name="sliders" size={23} color="#ffffff" />
+          <Feather name="sliders" size={23} color={colors.foreground} />
         </Pressable>
       )}
       <Modal visible={visible} animationType="slide" onRequestClose={close}>

@@ -45,12 +45,12 @@ export function DashboardDetails({
   const sum = (values: number[]) =>
     values.reduce((s, v) => s + Math.round(v * 100), 0) / 100;
   const owe = sum(
-    app.debts
+    app.obligations
       .filter((d) => d.status !== "Paid" && d.type === "debit")
       .map((d) => d.amount),
   );
   const owed = sum(
-    app.debts
+    app.obligations
       .filter((d) => d.status !== "Paid" && d.type === "credit")
       .map((d) => d.amount),
   );
@@ -132,6 +132,7 @@ export function DashboardDetails({
             {line("Balance", app.balance)}
             {line("Reserved for goals", -goalSaved)}
             {line("Recurring bills reserved", -recurring)}
+            {line("Loan payments reserved", -app.monthlyLoanPayments)}
             {line("Available to spend", app.availableBalance)}
           </Card>
         )}
@@ -213,7 +214,7 @@ export function DashboardDetails({
               {line("Owed to you", owed)}
               {line("Net receivable", Math.round((owed - owe) * 100) / 100)}
             </Card>
-            {app.debts
+            {app.obligations
               .filter((d) => d.status !== "Paid")
               .map((d) => (
                 <Card key={d.id}>
