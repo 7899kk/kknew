@@ -4,13 +4,19 @@ Android personal finance app built with Expo / React Native. Finance data stays 
 
 ## Download
 
-**[Download the 1.3.0 APK](https://github.com/7899kk/kknew/releases/download/v1.3.0-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.3.0-j7)
+**[Download the 1.3.1 APK](https://github.com/7899kk/kknew/releases/download/v1.3.1-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.3.1-j7)
 
-Version **1.3.0**, Android code **9**. Finance and real emulator SMS flows passed Android 7, 9 and 16 checks. The public APK download, hash, manifest and signatures were independently verified.
+Version **1.3.1**, Android code **10**. Finance and real emulator SMS flows passed Android 7, 9 and 16 checks. The public APK download, hash, manifest and signatures were independently verified.
 
 Android 7/API 24 or newer, ARM32 and ARM64. Personal preview signed with the Android test key. Physical-phone and real bank format checks remain necessary.
 
-## What changed in 1.3.0
+## What changed in 1.3.1
+
+The original dashboard design is restored: balance hero, three figures within the card, smaller cards, finance pie chart, goals and recent expenses. Extra explanatory text is removed. Tap the cards or graph for full breakdowns.
+
+Bill split uses the previous group-name and member-names form. Enter names separated by commas, then Save. Buttons respond while the keyboard is open; member entry and persistence passed Android 7, 9 and 16 device checks.
+
+## Features introduced in 1.3.0
 
 - Compact Home, Activity and Split screens. Every main screen shows the brand and your name; Dues contains debts and credits.
 - Tap dashboard cards for balance, income, expense/category, available-money, goal and debt breakdowns.
@@ -43,7 +49,7 @@ node scripts/profinancer-web.test.cjs artifacts/wealthtrack/dist
 
 Java 17, Android SDK 36 and NDK 27.1.12297006 are needed for native builds. Run Expo prebuild, then `:money-notifications:testReleaseUnitTest` and `:app:assembleRelease`. The GitHub Actions workflow builds ARM32/64 and tests Android 7, 9 and 16 before publication. Expo Go and web cannot read SMS.
 
-See [1.3.0 verification](VERIFICATION-1.3.0.md) and [previous release evidence](VERIFICATION-1.2.0.md).
+See [1.3.1 verification](VERIFICATION-1.3.1.md), [1.3.0 SMS release evidence](VERIFICATION-1.3.0.md) and [earlier release evidence](VERIFICATION-1.2.0.md).
 
 ## Optional Google sign-in
 
