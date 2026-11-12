@@ -2,7 +2,16 @@
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.READ_SMS" />
   <uses-permission android:name="android.permission.RECEIVE_SMS" />
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <application>
+    <receiver android:name="expo.modules.moneynotifications.PaymentReminderReceiver" android:exported="false">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+        <action android:name="android.intent.action.TIME_SET" />
+        <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+      </intent-filter>
+    </receiver>
     <receiver android:name="expo.modules.moneynotifications.SmsReceiver" android:exported="true" android:permission="android.permission.BROADCAST_SMS">
       <intent-filter><action android:name="android.provider.Telephony.SMS_RECEIVED" /></intent-filter>
     </receiver>

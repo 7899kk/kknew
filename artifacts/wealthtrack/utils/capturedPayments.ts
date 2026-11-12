@@ -132,7 +132,13 @@ export function applyCapturedPayments<T extends PaymentState>(
           old.captureId &&
           old.bankKey === event.bankKey &&
           old.amount === event.amount &&
-          Math.abs((old.timestamp || 0) - event.timestamp) <= 600000 &&
+          Math.abs((old.timestamp || 0) - event.timestamp) <=
+            (old.accountKey &&
+            old.accountKey === event.accountKey &&
+            old.balanceAfter !== undefined &&
+            old.balanceAfter === event.balanceAfter
+              ? 86400000
+              : 600000) &&
           !(
             old.accountKey &&
             event.accountKey &&

@@ -1,3 +1,6 @@
+import { pickProfilePhoto } from "@/utils/profilePhoto";
+import { GoalImage } from "@/components/GoalImage";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
 import Svg, { Circle } from "react-native-svg";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import { nextMonthSavingsPlan, goalSavingsPlan } from "@/utils/financeSummary";
@@ -104,6 +107,8 @@ export default function GoalsScreen() {
   const [targetAmount, setTargetAmount] = useState("");
   const [savedAmount, setSavedAmount] = useState("");
   const [targetDate, setTargetDate] = useState("");
+  const [imageUri, setImageUri] = useState<string | undefined>(),
+    [photoBusy, setPhotoBusy] = useState(false);
   const [emoji, setEmoji] = useState("🎯");
 
   const reset = () => {
@@ -113,6 +118,7 @@ export default function GoalsScreen() {
     setSavedAmount("");
     setTargetDate("");
     setEmoji("🎯");
+    setImageUri(undefined);
     setEditingId(null);
     setShowPresets(false);
   };
@@ -130,6 +136,7 @@ export default function GoalsScreen() {
     setSavedAmount(goal.savedAmount.toString());
     setTargetDate(goal.targetDate || "");
     setEmoji(goal.emoji || "🎯");
+    setImageUri(goal.imageUri);
     setEditingId(goal.id);
     setShowPresets(false);
     setShowModal(true);
@@ -178,6 +185,7 @@ export default function GoalsScreen() {
       savedAmount: parseFloat(savedAmount) || 0,
       targetDate: targetDate || undefined,
       emoji,
+      imageUri,
     };
     editingId ? updateGoal(editingId, data) : addGoal(data);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -244,15 +252,14 @@ export default function GoalsScreen() {
         ListHeaderComponent={
           <View style={{ gap: 12, marginBottom: 16 }}>
             <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
-              <Text
+              <AnimatedMoney
+                value={totalSaved}
                 style={{
                   fontSize: 33,
                   fontFamily: "Inter_700Bold",
                   color: colors.foreground,
                 }}
-              >
-                {formatCurrency(totalSaved)}
-              </Text>
+              ></AnimatedMoney>
               <Text
                 style={{
                   fontSize: 12,
@@ -360,6 +367,9 @@ export default function GoalsScreen() {
                     </Text>
                   </View>
                 </View>
+                {item.imageUri && (
+                  <GoalImage uri={item.imageUri} emoji={item.emoji} size={48} />
+                )}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Edit goal ${item.name}`}
@@ -456,6 +466,7 @@ export default function GoalsScreen() {
 
       {/* FAB */}
       <Pressable
+        accessibilityRole="button"
         accessibilityLabel="Add goal"
         onPress={openAdd}
         style={{
@@ -586,6 +597,9 @@ export default function GoalsScreen() {
               {editingId ? "Edit Goal" : "New Goal"}
             </Text>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close goal form"
+              disabled={photoBusy}
               onPress={() => {
                 setShowModal(false);
                 reset();
@@ -595,7 +609,10 @@ export default function GoalsScreen() {
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {/* Preset selector — shown only for new goal */}
             {showPresets && !editingId && (
               <>
@@ -704,6 +721,46 @@ export default function GoalsScreen() {
               </>
             )}
 
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 16,
+              }}
+            >
+              <GoalImage uri={imageUri} emoji={emoji} />
+              <View style={{ flex: 1 }}>
+                <Button
+                  title={photoBusy ? "Opening photos…" : "Choose goal image"}
+                  disabled={photoBusy}
+                  variant="secondary"
+                  onPress={async () => {
+                    setPhotoBusy(true);
+                    try {
+                      const uri = await pickProfilePhoto();
+                      if (uri) setImageUri(uri);
+                    } catch (e) {
+                      Alert.alert(
+                        "Goal image",
+                        e instanceof Error
+                          ? e.message
+                          : "Choose another image.",
+                      );
+                    } finally {
+                      setPhotoBusy(false);
+                    }
+                  }}
+                />
+                {imageUri && (
+                  <Button
+                    title="Remove goal image"
+                    variant="ghost"
+                    onPress={() => setImageUri(undefined)}
+                  />
+                )}
+              </View>
+            </View>
             <Input
               label="Goal Name"
               value={name}
@@ -804,7 +861,7 @@ export default function GoalsScreen() {
             <Button
               title={editingId ? "Save Changes" : "Create Goal"}
               onPress={save}
-              disabled={!name.trim() || !targetAmount}
+              disabled={photoBusy || !name.trim() || !targetAmount}
             />
             <View style={{ height: 40 }} />
           </ScrollView>

@@ -43,7 +43,7 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
-    tabs={'Home','Activity','Add','Insights','Loans'}
+    tabs={'Home','Activity','Add','Insights','Loans','Others'}
     nav_bounds=[]
     for candidate in root.iter('node'):
         if candidate.get('text') not in tabs:continue
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
         tap('Split');contains('Weekend');contains('Arun, Priya, Karthik');save('group-people-after-restart')
 
-        tap('Loans');tap('Add loan')
+        tap('Loans');tap('Add loan');tap('Existing balance')
         enter('Loan name','Bike');enter('Lender','Bank')
         enter('Total balance to repay','12000');enter('Monthly payment','2000')
         tap('Save loan');tap('Home');contains('95,500');save('loan-monthly-reserve')
@@ -203,6 +203,32 @@ if __name__ == "__main__":
         adb('shell','am','force-stop','com.profinancer.app')
         adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
         tap('Loans');contains('Bike');contains('10,000');save('loan-restart-persisted')
+
+        # A real interest-bearing plan and a local notification using its real due record.
+        tap('Add loan');enter('Loan name','InterestLoan');enter('Lender','Lender')
+        enter('Loan amount','100000');enter('Annual interest (%)','12');enter('Term (months)','12')
+        contains('8,884.88');contains('1,06,618.53');save('interest-emi-preview')
+        tap('Save loan');tap('Home');contains('88,615.12');save('interest-loan-dashboard')
+        tap('Others');tap('Enable reminders')
+        for _ in range(5):
+            root=ui();allow=next((n for n in root.iter('node') if n.get('text','').casefold()=='allow'),None)
+            if allow is None:
+                if any(n.get('text')=='Reminders on' for n in root.iter('node')):break
+                time.sleep(1);continue
+            x1,y1,x2,y2=map(int,re.findall(r'\d+',allow.get('bounds')))
+            adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
+        time.sleep(4)
+        tap('Send due reminder now');time.sleep(2)
+        notifications=adb('shell','dumpsys','notification','--noredact')
+        assert 'Payments due' in notifications and 'InterestLoan EMI' in notifications, 'Real loan reminder notification missing'
+        (evidence/'payment-reminder-notification.txt').write_text(notifications)
+        alarms=adb('shell','dumpsys','alarm')
+        assert 'PaymentReminderReceiver' in alarms, 'Next daily reminder alarm missing'
+        (evidence/'payment-reminder-alarm.txt').write_text(alarms)
+        save('others-reminders-on')
+        tap('Turn off reminders');time.sleep(2)
+        active_alarms=adb('shell','dumpsys','alarm').split('Past-due non-wakeup alarms')[0].split('Alarm Stats:')[0].split('Removal history:')[0]
+        assert 'PaymentReminderReceiver' not in active_alarms, 'Disabled daily reminder remained scheduled'
 
         (evidence/'FINANCE-FLOW-PASSED.txt').write_text('Name and username entered once. Salary 100000 + savings 1000 = 101000. Expense 2500 => 98500. Goal reservation 1000 => available 97500, cash unchanged. Data persisted after restart. Loan 12000 reserves monthly 2000, repayment changes dues to 10000 without changing cash; persists on restart.\n')
         print('Android finance flow passed')

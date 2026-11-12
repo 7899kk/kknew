@@ -1,3 +1,5 @@
+import { loanTermsPlan } from "@/utils/loanTerms";
+import { installmentDate } from "@/utils/loans";
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -26,7 +28,11 @@ export default function LoansScreen() {
   const [selected, setSelected] = useState<string | null>(null),
     [form, setForm] = useState(false),
     [editing, setEditing] = useState<string | null>(null),
-    [paying, setPaying] = useState(false);
+    [paying, setPaying] = useState(false),
+    [showSchedule, setShowSchedule] = useState(false);
+  const [mode, setMode] = useState("Interest & term"),
+    [rate, setRate] = useState(""),
+    [months, setMonths] = useState("");
   const [name, setName] = useState(""),
     [party, setParty] = useState(""),
     [kind, setKind] = useState("Borrowed"),
@@ -37,6 +43,20 @@ export default function LoansScreen() {
     [paidDate, setPaidDate] = useState(localDate()),
     [activityId, setActivityId] = useState(""),
     [error, setError] = useState("");
+  let estimate: ReturnType<typeof loanTermsPlan> | null = null,
+    estimateError = "";
+  if (mode === "Interest & term" && principal && rate && months) {
+    try {
+      estimate = loanTermsPlan(
+        Number(principal),
+        Number(rate),
+        Number(months),
+        monthly ? Number(monthly) : undefined,
+      );
+    } catch (e) {
+      estimateError = e instanceof Error ? e.message : "Check terms";
+    }
+  }
   useEffect(() => {
     if (params.loanId) setSelected(params.loanId);
   }, [params.loanId]);
@@ -47,7 +67,10 @@ export default function LoansScreen() {
     setName(l?.name || "");
     setParty(l?.party || "");
     setKind(l?.kind === "lent" ? "Lent" : "Borrowed");
-    setPrincipal(l ? String(l.principal) : "");
+    setMode(l && !l.terms ? "Existing balance" : "Interest & term");
+    setRate(l?.terms ? String(l.terms.annualRate) : "");
+    setMonths(l?.terms ? String(l.terms.months) : "");
+    setPrincipal(l ? String(l.terms?.amount || l.principal) : "");
     setMonthly(l ? String(l.monthlyPayment) : "");
     setDue(l?.firstDueDate || localDate());
     setError("");
@@ -58,8 +81,18 @@ export default function LoansScreen() {
       name: name.trim(),
       party: party.trim(),
       kind: kind === "Borrowed" ? ("borrowed" as const) : ("lent" as const),
-      principal: Number(principal),
-      monthlyPayment: Number(monthly),
+      principal:
+        mode === "Interest & term" ? estimate?.total || 0 : Number(principal),
+      monthlyPayment:
+        mode === "Interest & term" ? estimate?.monthly || 0 : Number(monthly),
+      terms:
+        mode === "Interest & term"
+          ? {
+              amount: Number(principal),
+              annualRate: Number(rate),
+              months: Number(months),
+            }
+          : undefined,
       firstDueDate: due,
     };
     const existing = app.loans.find((l) => l.id === editing);
@@ -68,7 +101,13 @@ export default function LoansScreen() {
       id: editing || "new",
       payments: existing?.payments || [],
     });
-    if (!validMoney(principal) || !validMoney(monthly) || !checked.success) {
+    if (
+      !validMoney(principal) ||
+      (mode === "Interest & term"
+        ? !validMoney(rate, true) || !months || !estimate
+        : !validMoney(monthly)) ||
+      !checked.success
+    ) {
       setError(
         checked.success
           ? "Enter positive amounts."
@@ -266,7 +305,12 @@ export default function LoansScreen() {
                 {loan.party} · {loan.kind === "borrowed" ? "Borrowed" : "Lent"}
               </Text>
               <Card>
-                {metric("Balance to repay", summary.remaining)}
+                {metric(
+                  loan.kind === "lent"
+                    ? "Balance owed to you"
+                    : "Balance to repay",
+                  summary.remaining,
+                )}
                 <Text style={{ color: c.foreground, marginTop: 14 }}>
                   {formatCurrencyFull(loan.monthlyPayment)} monthly
                 </Text>
@@ -287,6 +331,48 @@ export default function LoansScreen() {
                   </Text>
                 )}
               </Card>
+              {loan.terms &&
+                (() => {
+                  const plan = loanTermsPlan(
+                    loan.terms.amount,
+                    loan.terms.annualRate,
+                    loan.terms.months,
+                    loan.monthlyPayment,
+                  );
+                  return (
+                    <Card>
+                      {cardTitle("Loan terms")}
+                      <Text style={{ color: c.foreground, marginTop: 10 }}>
+                        {loan.kind === "lent"
+                          ? "Lent amount"
+                          : "Borrowed amount"}{" "}
+                        {formatCurrencyFull(loan.terms.amount)}
+                      </Text>
+                      <Text style={{ color: c.foreground, marginTop: 8 }}>
+                        Interest {loan.terms.annualRate}% annually · reducing
+                        balance
+                      </Text>
+                      <Text style={{ color: c.foreground, marginTop: 8 }}>
+                        Total interest {formatCurrencyFull(plan.interest)}
+                      </Text>
+                      <Text style={{ color: c.foreground, marginTop: 8 }}>
+                        Total repayment {formatCurrencyFull(plan.total)}
+                      </Text>
+                      <Text style={{ color: c.foreground, marginTop: 8 }}>
+                        {plan.installments.length} payments · final{" "}
+                        {formatCurrencyFull(plan.finalPayment)}
+                      </Text>
+                      <Text style={{ color: c.mutedForeground, marginTop: 8 }}>
+                        Ends{" "}
+                        {installmentDate(
+                          loan.firstDueDate,
+                          plan.installments.length - 1,
+                        )}{" "}
+                        · excludes fees and rate changes
+                      </Text>
+                    </Card>
+                  );
+                })()}
               {summary.remaining > 0 && (
                 <Button
                   title="Record repayment"
@@ -311,6 +397,47 @@ export default function LoansScreen() {
                 variant="secondary"
                 onPress={() => open(loan)}
               />
+              <Button
+                title={
+                  showSchedule
+                    ? "Hide payment schedule"
+                    : "Show payment schedule"
+                }
+                variant="secondary"
+                onPress={() => setShowSchedule(!showSchedule)}
+              />
+              {showSchedule &&
+                summary.schedule.slice(0, 120).map((row, i) => (
+                  <View
+                    key={row.date}
+                    style={{
+                      paddingVertical: 8,
+                      borderBottomWidth: 1,
+                      borderColor: c.border,
+                    }}
+                  >
+                    <Text style={{ color: c.foreground }}>
+                      #{i + 1} · {row.date} · {formatCurrencyFull(row.amount)}
+                    </Text>
+                    <Text
+                      style={{
+                        color: row.remaining ? c.expense : c.income,
+                        fontSize: 12,
+                        marginTop: 4,
+                      }}
+                    >
+                      {row.remaining
+                        ? `Unpaid ${formatCurrencyFull(row.remaining)}`
+                        : "Paid"}
+                    </Text>
+                  </View>
+                ))}
+              {showSchedule && summary.schedule.length > 120 && (
+                <Text style={{ color: c.mutedForeground }}>
+                  {summary.schedule.length - 120} later payments follow the same
+                  monthly plan.
+                </Text>
+              )}
               {cardTitle("Payments")}
               {loan.payments.length ? (
                 loan.payments.map((p) => (
@@ -455,6 +582,11 @@ export default function LoansScreen() {
                 value={kind}
                 onChange={setKind}
               />
+              <PillSelector
+                options={["Interest & term", "Existing balance"]}
+                value={mode}
+                onChange={setMode}
+              />
               <Input
                 label="Loan name"
                 value={name}
@@ -467,19 +599,82 @@ export default function LoansScreen() {
                 onChangeText={setParty}
               />
               <Input
-                label="Total balance to repay"
+                label={
+                  mode === "Interest & term"
+                    ? "Loan amount"
+                    : "Total balance to repay"
+                }
                 value={principal}
                 onChangeText={setPrincipal}
                 keyboardType="decimal-pad"
                 prefix="₹"
               />
+              {mode === "Interest & term" && (
+                <>
+                  <Input
+                    label="Annual interest (%)"
+                    value={rate}
+                    onChangeText={setRate}
+                    keyboardType="decimal-pad"
+                    placeholder="12"
+                  />
+                  <Input
+                    label="Term (months)"
+                    value={months}
+                    onChangeText={setMonths}
+                    keyboardType="numeric"
+                    placeholder="12"
+                  />
+                </>
+              )}
               <Input
-                label="Monthly payment"
+                label={
+                  mode === "Interest & term"
+                    ? "Monthly payment (optional)"
+                    : "Monthly payment"
+                }
                 value={monthly}
                 onChangeText={setMonthly}
                 keyboardType="decimal-pad"
                 prefix="₹"
               />
+              {mode === "Interest & term" && estimate && (
+                <Card>
+                  <Text style={{ color: c.foreground }}>
+                    Estimated EMI {formatCurrencyFull(estimate.recommended)}
+                  </Text>
+                  <Text style={{ color: c.foreground, marginTop: 8 }}>
+                    Total interest {formatCurrencyFull(estimate.interest)}
+                  </Text>
+                  <Text style={{ color: c.foreground, marginTop: 8 }}>
+                    Total repayment {formatCurrencyFull(estimate.total)}
+                  </Text>
+                  <Text style={{ color: c.foreground, marginTop: 8 }}>
+                    {estimate.installments.length} monthly payments · final{" "}
+                    {formatCurrencyFull(estimate.finalPayment)}
+                  </Text>
+                  {estimate.finalPayment > estimate.monthly * 1.02 && (
+                    <Text style={{ color: c.expense, marginTop: 8 }}>
+                      Your monthly amount leaves a larger final payment. Check
+                      this with your lender.
+                    </Text>
+                  )}
+                  <Text
+                    style={{
+                      color: c.mutedForeground,
+                      fontSize: 12,
+                      marginTop: 8,
+                    }}
+                  >
+                    Fixed estimate excludes fees and rate changes. Early or late
+                    payments do not recalculate lender interest. Existing
+                    balance keeps an already agreed total unchanged.
+                  </Text>
+                </Card>
+              )}
+              {!!estimateError && (
+                <Text style={{ color: c.expense }}>{estimateError}</Text>
+              )}
               <Input
                 label="First payment due"
                 value={due}

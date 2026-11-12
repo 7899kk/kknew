@@ -398,8 +398,8 @@ function ProfileScreen({
             { label: "Goals set", value: app.goals.length, icon: "target" },
 
             {
-              label: "Debt entries",
-              value: app.debts.length,
+              label: "Dues records",
+              value: app.obligations.length,
               icon: "alert-circle",
             },
             {

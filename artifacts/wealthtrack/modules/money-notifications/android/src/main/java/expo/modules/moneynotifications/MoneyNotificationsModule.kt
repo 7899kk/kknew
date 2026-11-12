@@ -41,9 +41,11 @@ class MoneyNotificationsModule : Module() {
     AsyncFunction("setSmsEnabled") { value:Boolean -> SmsCapture.setEnabled(context(),value) }
     AsyncFunction("dismissSmsSetup") { SmsCapture.setupHandled(context()) }
     AsyncFunction("openSmsAppSettings") { context().startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+context().packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    AsyncFunction("sendDueReminderNow") { PaymentReminders.deliver(context(),true) }
+    AsyncFunction("syncReminders") { enabled:Boolean,items:String -> PaymentReminders.sync(context(),enabled,items) }
     AsyncFunction("pending") { SmsCapture.recover(context()); MoneyStore.pending(context()).toString() }
     AsyncFunction("acknowledge") { ids: List<String> -> MoneyStore.acknowledge(context(),ids) }
     AsyncFunction("markImported") { MoneyStore.imported(context()) }
-    AsyncFunction("clear") { SmsCapture.clear(context()); MoneyStore.clear(context()) }
+    AsyncFunction("clear") { PaymentReminders.clear(context()); SmsCapture.clear(context()); MoneyStore.clear(context()) }
   }
 }

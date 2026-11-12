@@ -14,6 +14,7 @@ export default function Settings() {
     icon: React.ComponentProps<typeof Feather>["name"];
     route: string;
   }[] = [
+    { title: "Reminders & more", icon: "bell", route: "/(tabs)/others" },
     { title: "Profile", icon: "user", route: "/(tabs)/profile" },
     { title: "Debts & credits", icon: "repeat", route: "/(tabs)/debts" },
     { title: "Goals", icon: "target", route: "/(tabs)/goals" },

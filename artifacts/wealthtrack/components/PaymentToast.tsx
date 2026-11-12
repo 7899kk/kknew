@@ -1,3 +1,4 @@
+import { AnimatedMoney } from "./AnimatedMoney";
 import React, { useEffect } from "react";
 import { Text, View } from "react-native";
 import { router } from "expo-router";
@@ -12,7 +13,10 @@ export function PaymentToast() {
     insets = useSafeAreaInsets();
   useEffect(() => {
     if (!captureNotice) return;
-    const timer = setTimeout(dismissCaptureNotice, 8000);
+    const timer = setTimeout(
+      dismissCaptureNotice,
+      captureNotice.manual ? 3000 : 8000,
+    );
     return () => clearTimeout(timer);
   }, [captureNotice, dismissCaptureNotice]);
   if (!captureNotice) return null;
@@ -39,13 +43,23 @@ export function PaymentToast() {
     >
       <Text
         style={{
-          color: captureNotice.kind === "income" ? c.success : c.expense,
+          color: captureNotice.kind === "income" ? c.income : c.expense,
           fontWeight: "700",
           fontSize: 20,
         }}
       >
-        {formatCurrencyFull(captureNotice.amount)}{" "}
-        {captureNotice.kind === "income" ? "credited" : "debited"}
+        <AnimatedMoney
+          key={captureNotice.id}
+          fromZero
+          value={captureNotice.amount}
+        />{" "}
+        {captureNotice.manual
+          ? captureNotice.kind === "income"
+            ? "income added"
+            : "expense added"
+          : captureNotice.kind === "income"
+            ? "credited"
+            : "debited"}
       </Text>
       <Text style={{ color: c.foreground, marginVertical: 8 }}>
         {transactionDateLabel(captureNotice.date, captureNotice.time)}

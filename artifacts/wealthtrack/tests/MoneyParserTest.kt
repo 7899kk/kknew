@@ -114,7 +114,7 @@ fun main() {
   check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="new-credit",reference="REF1000003",balance=6000.0,timestamp=1001000),listOf(receipt))==null)
   check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="other-account",reference="REF1000004",account="5678",timestamp=1001000),listOf(receipt))==null)
   check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="other-bank",reference="REF1000005",bank="SBI",timestamp=1001000),listOf(receipt))==null)
-  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="later",reference="REF1000006",timestamp=1600001),listOf(receipt))==null)
+  check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="later",reference="REF1000006",timestamp=87400001),listOf(receipt))==null)
   check(SmsReceiptIdentity.possibleDuplicate(receipt.copy(id="no-ref",reference=null,timestamp=1001000),listOf(receipt))?.id=="original")
   println("10 bank receipt identity checks passed: bank aliases, masked accounts, balance parsing, repeated alerts, distinct credits and review safety")
   println("${cases.size + 1} native parser cases and refund/dedup fingerprint regressions passed")

@@ -128,6 +128,7 @@ const server = http.createServer((req, res) => {
       Expenses: "Add",
       Insights: "Insights",
       Loans: "Loans",
+      Others: "Others",
     };
     if (main[name]) {
       await p.getByRole("tab", { name: new RegExp(main[name]) }).click();
@@ -329,6 +330,7 @@ const server = http.createServer((req, res) => {
     ).toContainText("₹80");
     await section(owner, "Loans");
     await button(owner, "Add loan").click();
+    await button(owner, "Existing balance").click();
     await fill(owner, "Loan name", "Bike loan");
     await fill(owner, "Lender", "Bank");
     await fill(owner, "Total balance to repay", "12000");
@@ -388,6 +390,75 @@ const server = http.createServer((req, res) => {
       path: path.join(temp, "loans.png"),
       fullPage: true,
     });
+    // New detailed loan terms feed the same dashboard reserve and survive reload.
+    await section(owner, "Loans");
+    await button(owner, "Add loan").click();
+    await fill(owner, "Loan name", "Interest plan");
+    await fill(owner, "Lender", "Lender");
+    await fill(owner, "Loan amount", "100000");
+    await fill(owner, "Annual interest (%)", "12");
+    await fill(owner, "Term (months)", "12");
+    await expect(
+      owner.getByText("Estimated EMI ₹8,884.88", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      owner.getByText("Total repayment ₹1,06,618.53", { exact: true }),
+    ).toBeVisible();
+    await button(owner, "Save loan").click();
+    await section(owner, "Home");
+    await expect(button(owner, "Open monthly loan payments")).toContainText(
+      "₹10,384.88",
+    );
+    await expect(button(owner, "Open available balance details")).toContainText(
+      "₹59,615.12",
+    );
+    await section(owner, "Loans");
+    await button(owner, "Open loan Interest plan").click();
+    await expect(
+      owner.getByText("Interest 12% annually · reducing balance", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await button(owner, "Show payment schedule").click();
+    await expect(owner.getByText("#1 · ", { exact: false })).toBeVisible();
+    await owner.screenshot({
+      path: path.join(temp, "interest-plan.png"),
+      fullPage: true,
+    });
+    await button(owner, "Hide payment schedule").click();
+    await button(owner, "Close").click();
+    await section(owner, "Others");
+    await expect(
+      owner.getByText("Payment reminders", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      owner.getByText("Interest plan EMI · ₹8,884.88", { exact: true }),
+    ).toBeVisible();
+    await owner.screenshot({
+      path: path.join(temp, "others.png"),
+      fullPage: true,
+    });
+    await section(owner, "Goals");
+    await button(owner, "Add goal").click();
+    const goalPicker = owner.waitForEvent("filechooser");
+    await button(owner, "Choose goal image").click();
+    await (
+      await goalPicker
+    ).setFiles(path.resolve("artifacts/wealthtrack/assets/images/logo.png"));
+    await fill(owner, "Goal Name", "Dream Car");
+    await fill(owner, "Target Amount", "200000");
+    await button(owner, "Create Goal").click();
+    await expect(
+      owner.getByLabel("Goal photo").filter({ visible: true }),
+    ).toBeVisible();
+    await owner.reload();
+    await expect(
+      owner.getByLabel("Goal photo").filter({ visible: true }),
+    ).toBeVisible();
+    await owner.screenshot({
+      path: path.join(temp, "goal-photo.png"),
+      fullPage: true,
+    });
     await section(owner, "Profile");
     const photoPicker = owner.waitForEvent("filechooser");
     await button(owner, "Change profile photo").click();
@@ -445,6 +516,17 @@ const server = http.createServer((req, res) => {
       owner.getByLabel("Backup password", { exact: true }),
     ).toHaveCount(0);
     await expect(button(owner, "Export encrypted backup")).toBeVisible();
+    await section(owner, "Goals");
+    await expect(
+      owner.getByLabel("Goal photo").filter({ visible: true }),
+    ).toBeVisible();
+    await section(owner, "Loans");
+    await button(owner, "Open loan Interest plan").click();
+    await expect(
+      owner.getByText("Total interest ₹6,618.53", { exact: true }),
+    ).toBeVisible();
+    await button(owner, "Close").click();
+
     await section(owner, "Split");
     if (await button(owner, "Open group").count())
       await button(owner, "Open group").click();
@@ -458,7 +540,7 @@ const server = http.createServer((req, res) => {
     });
     expect(errors).toEqual([]);
     console.log(
-      "Browser checks passed: ivory dashboard/graphs/details, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
+      "Browser checks passed: detailed APR/EMI/term/schedule, dashboard interest reserve, Others/reminder preview, goal photo persistence and backup, ivory dashboard/graphs/details, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
     );
     console.log("Evidence:", temp);
   } finally {

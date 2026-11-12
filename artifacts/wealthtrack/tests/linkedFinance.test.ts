@@ -174,13 +174,13 @@ assert.equal(
 );
 const full = { ...state, loans: [partial], groupMemberships: { g: "Alice" } };
 const encoded = encodeLedger(full);
-assert.equal(JSON.parse(encoded).version, 2);
+assert.equal(JSON.parse(encoded).version, 3);
 assert.deepEqual(
   decodeLedger(JSON.stringify({ ...JSON.parse(encoded), version: 1 })),
   ledgerSchema.parse(full),
 );
 assert.throws(() =>
-  decodeLedger(JSON.stringify({ ...JSON.parse(encoded), version: 3 })),
+  decodeLedger(JSON.stringify({ ...JSON.parse(encoded), version: 4 })),
 );
 assert.equal(JSON.parse(encoded).ledger.loans[0].principal, 1200000);
 assert.deepEqual(decodeLedger(encoded), ledgerSchema.parse(full));

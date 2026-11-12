@@ -1,3 +1,8 @@
+import { recordedCashFlow } from "@/utils/dashboardData";
+import { GoalImage } from "@/components/GoalImage";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { Image } from "react-native";
+import { paymentReminders, remindersDue } from "@/utils/paymentReminders";
 import React, { useState } from "react";
 import {
   Pressable,
@@ -84,6 +89,8 @@ export default function DashboardScreen() {
   );
   const topGoal =
     app.goals.find((g) => g.savedAmount < g.targetAmount) || app.goals[0];
+  const cash = recordedCashFlow(app, month);
+  const dueSoon = remindersDue(paymentReminders(app));
   const upcoming = app.loans
     .filter((l) => l.kind === "borrowed")
     .map((l) => ({ loan: l, ...loanSummary(l) }))
@@ -103,17 +110,16 @@ export default function DashboardScreen() {
     >
       <Card style={{ gap: 9, padding: 16 }}>
         <Text style={{ color: c.mutedForeground, fontSize: 12 }}>{title}</Text>
-        <Text
+        <AnimatedMoney
+          value={value}
           numberOfLines={1}
           adjustsFontSizeToFit
           style={{
-            color: c.foreground,
+            color,
             fontSize: 22,
             fontFamily: "Inter_700Bold",
           }}
-        >
-          {formatCurrencyFull(value)}
-        </Text>
+        ></AnimatedMoney>
         <View
           style={{ height: 3, borderRadius: 2, backgroundColor: color + "35" }}
         >
@@ -163,7 +169,9 @@ export default function DashboardScreen() {
               marginTop: 10,
             }}
           >
-            <Text
+            <AnimatedMoney
+              value={app.balance}
+              fromZero
               numberOfLines={1}
               adjustsFontSizeToFit
               style={{
@@ -172,16 +180,14 @@ export default function DashboardScreen() {
                 color: c.foreground,
                 flexShrink: 1,
               }}
-            >
-              {formatCurrencyFull(app.balance)}
-            </Text>
+            ></AnimatedMoney>
             {comparison.hasPrevious && comparison.percent !== null && (
               <View
                 style={{
                   backgroundColor:
                     comparison.difference <= 0
-                      ? c.successLight
-                      : c.warningLight,
+                      ? c.incomeLight
+                      : c.expense + "15",
                   paddingHorizontal: 8,
                   paddingVertical: 4,
                   borderRadius: 12,
@@ -190,7 +196,7 @@ export default function DashboardScreen() {
                 <Text
                   style={{
                     fontSize: 10,
-                    color: comparison.difference <= 0 ? c.success : c.warning,
+                    color: comparison.difference <= 0 ? c.income : c.expense,
                   }}
                 >
                   {comparison.percent}%{" "}
@@ -225,8 +231,8 @@ export default function DashboardScreen() {
           onChange={setPeriod}
         />
         <View style={{ flexDirection: "row", gap: 12 }}>
-          {metric("Income", app.totalIncome, "Income", c.success)}
-          {metric("Expenses", app.totalExpenses, "Expenses", c.gold)}
+          {metric("Income", app.totalIncome, "Income", c.income)}
+          {metric("Expenses", app.totalExpenses, "Expenses", c.expense)}
         </View>
         <Pressable
           accessibilityRole="button"
@@ -358,7 +364,7 @@ export default function DashboardScreen() {
               </Text>
               <Text
                 style={{
-                  color: c.foreground,
+                  color: c.expense,
                   fontFamily: "Inter_700Bold",
                   fontSize: 20,
                 }}
@@ -372,7 +378,7 @@ export default function DashboardScreen() {
               </Text>
               <Text
                 style={{
-                  color: c.success,
+                  color: c.income,
                   fontFamily: "Inter_700Bold",
                   fontSize: 20,
                 }}
@@ -490,6 +496,11 @@ export default function DashboardScreen() {
               </View>
               <Feather name="plus" size={18} color={c.foreground} />
             </View>
+            {topGoal?.imageUri && (
+              <View style={{ marginVertical: 10 }}>
+                <GoalImage uri={topGoal.imageUri} emoji={topGoal.emoji} />
+              </View>
+            )}
             {topGoal && (
               <View style={{ marginTop: 13, gap: 8 }}>
                 <ProgressBar
@@ -521,6 +532,136 @@ export default function DashboardScreen() {
             View insights →
           </Text>
         </Pressable>
+        <Card>
+          <Text style={{ color: c.foreground, fontFamily: "Inter_700Bold" }}>
+            Recorded cash flow
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 12,
+            }}
+          >
+            <Text style={{ color: c.income }}>Income</Text>
+            <Text style={{ color: c.income }}>
+              {formatCurrencyFull(cash.earned)}
+            </Text>
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 10,
+            }}
+          >
+            <Text style={{ color: c.expense }}>Spent</Text>
+            <Text style={{ color: c.expense }}>
+              {formatCurrencyFull(app.totalExpenses)}
+            </Text>
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 10,
+            }}
+          >
+            <Text style={{ color: c.foreground }}>Net recorded</Text>
+            <AnimatedMoney
+              value={cash.net}
+              style={{
+                color: cash.net >= 0 ? c.income : c.expense,
+                fontFamily: "Inter_700Bold",
+              }}
+            />
+          </View>
+        </Card>
+        {dueSoon.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open upcoming payments"
+            onPress={() => router.push("/(tabs)/others" as Href)}
+          >
+            <Card>
+              <Text style={{ color: c.expense, fontFamily: "Inter_700Bold" }}>
+                Due within 7 days or overdue · {dueSoon.length}
+              </Text>
+              {dueSoon.slice(0, 3).map((item) => (
+                <Text
+                  key={item.id}
+                  style={{ color: c.foreground, marginTop: 9 }}
+                >
+                  {item.title} · {formatCurrencyFull(item.amount)} ·{" "}
+                  {item.dueDate}
+                </Text>
+              ))}
+            </Card>
+          </Pressable>
+        )}
+        {app.expenses.length + app.incomes.length > 0 && (
+          <Card>
+            <Text
+              style={{
+                color: c.foreground,
+                fontFamily: "Inter_700Bold",
+                marginBottom: 10,
+              }}
+            >
+              Latest activity
+            </Text>
+            {[
+              ...app.expenses.map((e) => ({ ...e, direction: "debit" })),
+              ...app.incomes.map((e) => ({ ...e, direction: "credit" })),
+            ]
+              .sort(
+                (a, b) =>
+                  b.date.localeCompare(a.date) ||
+                  (b.timestamp || 0) - (a.timestamp || 0),
+              )
+              .slice(0, 5)
+              .map((e) => (
+                <Pressable
+                  key={e.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={"View activity " + e.id}
+                  onPress={() => router.push("/(tabs)/activity" as Href)}
+                  style={{
+                    paddingVertical: 10,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.foreground }}>
+                      {("name" in e && e.name) ||
+                        e.notes ||
+                        e.category ||
+                        "Payment"}
+                    </Text>
+                    <Text
+                      style={{
+                        color: c.mutedForeground,
+                        fontSize: 11,
+                        marginTop: 4,
+                      }}
+                    >
+                      {e.category} · {e.date}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: e.direction === "credit" ? c.income : c.expense,
+                    }}
+                  >
+                    {e.direction === "credit" ? "+" : "−"}
+                    {formatCurrencyFull(e.amount)}
+                  </Text>
+                </Pressable>
+              ))}
+          </Card>
+        )}
       </ScrollView>
       <DashboardDetails
         detail={detail}

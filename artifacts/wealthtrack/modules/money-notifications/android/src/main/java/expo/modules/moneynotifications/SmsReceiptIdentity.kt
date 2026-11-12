@@ -14,7 +14,7 @@ object SmsReceiptIdentity {
   fun possibleDuplicate(current:SmsReceipt,recent:List<SmsReceipt>):SmsReceipt? {
     if(current.kind!="income"&&current.kind!="expense")return null
     return recent.asReversed().firstOrNull { old ->
-      old.id!=current.id && old.kind==current.kind && old.bank==current.bank && old.amount==current.amount && abs(old.timestamp-current.timestamp)<=600000 &&
+      old.id!=current.id && old.kind==current.kind && old.bank==current.bank && old.amount==current.amount && abs(old.timestamp-current.timestamp)<=(if(old.account!=null&&old.account==current.account&&old.balance!=null&&old.balance==current.balance)86400000 else 600000) &&
       !(old.reference!=null && old.reference==current.reference) &&
       !(old.account!=null && current.account!=null && old.account!=current.account) &&
       !(old.balance!=null && current.balance!=null && old.balance!=current.balance)

@@ -1,5 +1,6 @@
 import type { Expense, IncomeEntry } from "../context/AppContext";
 export type PaymentReceipt = {
+  manual?: boolean;
   id: string;
   amount: number;
   date: string;

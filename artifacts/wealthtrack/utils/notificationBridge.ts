@@ -19,9 +19,11 @@ export type CaptureStatus = {
   lastError?: string;
 };
 interface Bridge {
+  sendDueReminderNow(): Promise<void>;
+  syncReminders(enabled: boolean, items: string): Promise<void>;
   status(): Promise<CaptureStatus>;
-  requestSmsPermissions(): Promise<{granted:boolean;canAskAgain?:boolean}>;
-  setSmsEnabled(value:boolean): Promise<void>;
+  requestSmsPermissions(): Promise<{ granted: boolean; canAskAgain?: boolean }>;
+  setSmsEnabled(value: boolean): Promise<void>;
   dismissSmsSetup(): Promise<void>;
   openSmsAppSettings(): Promise<void>;
   openSettings(): Promise<void>;

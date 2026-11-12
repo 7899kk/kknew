@@ -46,3 +46,21 @@ export function categoryTotals(
     .map(([name, n]) => ({ name, amount: n / 100 }))
     .sort((a, b) => b.amount - a.amount);
 }
+
+/** Confirmed recorded cash only; salary estimates and dues never masquerade as bank receipts. */
+export function recordedCashFlow(
+  state: { incomes: IncomeEntry[]; expenses: Expense[] },
+  month = localDate().slice(0, 7),
+) {
+  const sum = (rows: { date: string; amount: number }[]) =>
+    rows
+      .filter((e) => e.date.startsWith(month))
+      .reduce((n, e) => n + Math.round(e.amount * 100), 0);
+  const earned = sum(state.incomes),
+    spent = sum(state.expenses);
+  return {
+    earned: earned / 100,
+    spent: spent / 100,
+    net: (earned - spent) / 100,
+  };
+}

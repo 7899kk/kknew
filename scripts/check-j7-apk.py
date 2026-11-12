@@ -64,7 +64,7 @@ with zipfile.ZipFile(apk) as archive:
     assert manifest['versionName']==config['version'] and manifest['versionCode']==config['android']['versionCode']
     assert sdk['minSdkVersion']==24, sdk
     permissions={attrs['name'] for name,attrs in elements if name=='uses-permission'}
-    allowed={'android.permission.READ_SMS','android.permission.RECEIVE_SMS','android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
+    allowed={'android.permission.RECEIVE_BOOT_COMPLETED','android.permission.READ_SMS','android.permission.RECEIVE_SMS','android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
     assert permissions<=allowed, 'Unexpected permissions: '+str(permissions-allowed)
     assert any(name=='service' and attrs.get('name')=='expo.modules.moneynotifications.MoneyListener' and attrs.get('permission')=='android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' for name,attrs in elements), 'Automatic capture listener missing'
     assert {'android.permission.READ_SMS','android.permission.RECEIVE_SMS'} <= permissions

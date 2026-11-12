@@ -1,3 +1,4 @@
+import { loanTermsPlan } from "./loanTerms";
 import type { Loan } from "./ledgerSchema";
 import { localDate } from "./financeValidation";
 const cents = (n: number) => Math.round(n * 100);
@@ -13,6 +14,14 @@ export function loanSchedule(loan: Loan, asOf = "9999-12-31") {
     .filter((p) => p.date <= asOf)
     .reduce((s, p) => s + cents(p.amount), 0);
   let remaining = cents(loan.principal);
+  const plan = loan.terms
+    ? loanTermsPlan(
+        loan.terms.amount,
+        loan.terms.annualRate,
+        loan.terms.months,
+        loan.monthlyPayment,
+      ).installments
+    : undefined;
   const schedule: {
     date: string;
     amount: number;
@@ -20,7 +29,9 @@ export function loanSchedule(loan: Loan, asOf = "9999-12-31") {
     paid: number;
   }[] = [];
   for (let i = 0; remaining > 0 && i < 1200; i++) {
-    const amount = Math.min(remaining, cents(loan.monthlyPayment));
+    const amount = plan
+      ? cents(plan[i]?.amount || 0)
+      : Math.min(remaining, cents(loan.monthlyPayment));
     if (amount <= 0) break;
     const applied = Math.min(paid, amount);
     paid -= applied;

@@ -1,3 +1,4 @@
+import { loanTermsPlan } from "./loanTerms";
 import { z } from "zod";
 export const categories = [
   "Food",
@@ -166,10 +167,39 @@ export const loanSchema = z
     principal: positiveMoney,
     monthlyPayment: positiveMoney,
     firstDueDate: date,
+    terms: z
+      .object({
+        amount: positiveMoney,
+        annualRate: z.number().finite().min(0).max(100),
+        months: z.number().int().min(1).max(1200),
+      })
+      .optional(),
     payments: z.array(loanPaymentSchema).max(10000).default([]),
   })
   .superRefine((loan, c) => {
+    if (loan.terms) {
+      try {
+        const plan = loanTermsPlan(
+          loan.terms.amount,
+          loan.terms.annualRate,
+          loan.terms.months,
+          loan.monthlyPayment,
+        );
+        if (Math.round(plan.total * 100) !== Math.round(loan.principal * 100))
+          c.addIssue({
+            code: "custom",
+            message:
+              "Loan total does not match its interest and installment plan",
+          });
+      } catch (e) {
+        c.addIssue({
+          code: "custom",
+          message: e instanceof Error ? e.message : "Invalid loan terms",
+        });
+      }
+    }
     if (
+      !loan.terms &&
       Math.ceil(
         Math.round(loan.principal * 100) /
           Math.round(loan.monthlyPayment * 100),
@@ -292,6 +322,7 @@ export const ledgerSchema = z
           targetDate: date.optional(),
           description: optionalText,
           emoji: optionalText,
+          imageUri: z.string().max(100000).optional(),
           category: z
             .enum(["Bike", "Car", "Flat", "Emergency", "Custom"])
             .optional(),
@@ -301,6 +332,7 @@ export const ledgerSchema = z
     billGroups: z.array(groupSchema),
     budgets: z.array(budgetSchema).default([]),
     deviceId: id.optional(),
+    remindersEnabled: z.boolean().default(false),
     loans: z.array(loanSchema).max(1000).default([]),
     groupMemberships: z.record(id).default({}),
   })
@@ -368,14 +400,14 @@ function convert(value: unknown, encode: boolean): unknown {
 }
 export function encodeLedger(value: unknown) {
   return JSON.stringify({
-    version: 2,
+    version: 3,
     unit: "paise",
     ledger: convert(ledgerSchema.parse(value), true),
   });
 }
 export function decodeLedger(raw: string) {
   const v = JSON.parse(raw);
-  if (![1, 2].includes(v.version) || v.unit !== "paise")
+  if (![1, 2, 3].includes(v.version) || v.unit !== "paise")
     throw Error("Unsupported ledger version");
   return ledgerSchema.parse(convert(v.ledger, false));
 }

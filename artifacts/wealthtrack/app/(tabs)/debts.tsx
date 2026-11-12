@@ -186,7 +186,7 @@ export default function DebtsScreen() {
                 <View style={{ alignItems: "flex-end", gap: 5 }}>
                   <Text
                     style={{
-                      color: d.type === "credit" ? c.success : c.foreground,
+                      color: d.type === "credit" ? c.income : c.expense,
                       fontFamily: "Inter_700Bold",
                       fontSize: 17,
                     }}

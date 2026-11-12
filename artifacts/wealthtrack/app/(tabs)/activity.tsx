@@ -351,7 +351,7 @@ export default function ActivityScreen() {
                     borderRadius: 11,
                     backgroundColor:
                       e.kind === "income"
-                        ? colors.successLight
+                        ? colors.incomeLight
                         : colors.goldLight,
                     alignItems: "center",
                     justifyContent: "center",
@@ -392,8 +392,7 @@ export default function ActivityScreen() {
                 </View>
                 <Text
                   style={{
-                    color:
-                      e.kind === "income" ? colors.success : colors.foreground,
+                    color: e.kind === "income" ? colors.income : colors.expense,
                     fontFamily: "Inter_700Bold",
                     fontSize: 15,
                   }}
@@ -421,6 +420,7 @@ export default function ActivityScreen() {
         onRequestClose={() => setEditing(null)}
       >
         <ScrollView
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             padding: 24,
             paddingTop: insets.top + 24,

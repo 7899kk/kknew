@@ -1,3 +1,4 @@
+import { paymentReminders } from "@/utils/paymentReminders";
 import { linkedObligations, localGroupMember } from "@/utils/obligations";
 import type { Obligation } from "@/utils/obligations";
 import { loanSchema } from "@/utils/ledgerSchema";
@@ -125,6 +126,7 @@ export interface SavingsGoal {
   targetAmount: number;
   savedAmount: number;
   targetDate?: string;
+  imageUri?: string;
   emoji?: string;
   category?: "Bike" | "Car" | "Flat" | "Emergency" | "Custom";
 }
@@ -188,6 +190,7 @@ export interface PaymentReview extends Omit<CapturedPayment, "kind"> {
 }
 
 export interface AppState {
+  remindersEnabled: boolean;
   loans: Loan[];
   groupMemberships: Record<string, string>;
   deviceId?: string;
@@ -210,6 +213,7 @@ interface AppContextType extends AppState {
   obligations: Obligation[];
   totalCredit: number;
   monthlyLoanPayments: number;
+  setRemindersEnabled: (value: boolean) => void;
   setGroupMember: (groupId: string, member: string) => void;
   addLoan: (data: Omit<Loan, "id" | "payments">) => void;
   updateLoan: (
@@ -219,6 +223,7 @@ interface AppContextType extends AppState {
   deleteLoan: (id: string) => void;
   recordLoanPayment: (id: string, payment: Omit<LoanPayment, "id">) => void;
   deleteLoanPayment: (id: string, paymentId: string) => void;
+  reminderError: string | null;
   captureNotice: PaymentReceipt | null;
   dismissCaptureNotice: () => void;
   setBudget: (budget: Budget) => void;
@@ -294,6 +299,7 @@ const defaultProfile: UserProfile = {
 };
 
 const defaultState: AppState = {
+  remindersEnabled: false,
   loans: [],
   groupMemberships: {},
   budgets: [],
@@ -339,6 +345,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef<AppState>(defaultState);
   const restoring = useRef(false);
 
+  const [reminderError, setReminderError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const saving = useRef<Promise<void>>(Promise.resolve());
   const importBusy = useRef(false);
@@ -641,6 +648,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loaded, update]);
 
+  useEffect(() => {
+    if (!loaded || !notificationBridge) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          await saving.current;
+          if (!active) return;
+          const saved = stateRef.current;
+          await notificationBridge!.syncReminders(
+            saved.remindersEnabled,
+            JSON.stringify(paymentReminders(saved)),
+          );
+          if (active) setReminderError(null);
+        } catch {
+          if (active)
+            setReminderError(
+              "Payment reminders could not be scheduled. Reopen the app and check notification settings.",
+            );
+        }
+      })();
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [loaded, state.loans, state.debts, state.remindersEnabled]);
+
   const resetData = useCallback(async () => {
     captureEpoch.current++;
     setCaptureNotice(null);
@@ -667,15 +702,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
   const retrySave = useCallback(() => update((s) => ({ ...s })), [update]);
+  const announceManual = useCallback(
+    (id: string, kind: "income" | "expense") => {
+      const epoch = captureEpoch.current;
+      void saving.current
+        .then(() => {
+          if (epoch !== captureEpoch.current) return;
+          const entry = (
+            kind === "income"
+              ? stateRef.current.incomes
+              : stateRef.current.expenses
+          ).find((e) => e.id === id);
+          if (entry) setCaptureNotice({ ...entry, kind, manual: true });
+        })
+        .catch(() => {});
+    },
+    [],
+  );
   const addIncome = useCallback(
     (data: Omit<IncomeEntry, "id">) => {
       if (!Number.isFinite(data.amount) || data.amount <= 0) return;
-      update((s) => ({
-        ...s,
-        incomes: [{ ...data, id: genId() }, ...s.incomes],
-      }));
+      const id = genId();
+      update((s) => ({ ...s, incomes: [{ ...data, id }, ...s.incomes] }));
+      announceManual(id, "income");
     },
-    [update],
+    [update, announceManual],
   );
   const updateIncome = useCallback(
     (id: string, data: Partial<IncomeEntry>) =>
@@ -709,12 +760,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addExpense = useCallback(
-    (expense: Omit<Expense, "id">) =>
-      update((s) => ({
-        ...s,
-        expenses: [{ ...expense, id: genId() }, ...s.expenses],
-      })),
-    [update],
+    (expense: Omit<Expense, "id">) => {
+      const id = genId();
+      update((s) => ({ ...s, expenses: [{ ...expense, id }, ...s.expenses] }));
+      announceManual(id, "expense");
+    },
+    [update, announceManual],
   );
   const updateExpense = useCallback(
     (id: string, expense: Partial<Expense>) =>
@@ -1025,12 +1076,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         obligations,
         totalCredit,
         monthlyLoanPayments: summary.loanReserve,
+        setRemindersEnabled: (value: boolean) =>
+          update((s) => ({ ...s, remindersEnabled: value })),
         setGroupMember,
         addLoan,
         updateLoan,
         deleteLoan,
         recordLoanPayment,
         deleteLoanPayment,
+        reminderError,
         captureNotice,
         dismissCaptureNotice,
         setBudget,

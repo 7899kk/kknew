@@ -17,6 +17,7 @@ export default function TabLayout() {
     { name: "expenses", title: "Add", icon: "plus" },
     { name: "insights", title: "Insights", icon: "bar-chart-2" },
     { name: "loans", title: "Loans", icon: "credit-card" },
+    { name: "others", title: "Others", icon: "grid" },
   ];
   return (
     <Tabs
