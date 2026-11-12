@@ -182,6 +182,7 @@ const server = http.createServer((req, res) => {
       owner.getByText("Recorded cash flow · last 12 months", { exact: true }),
     ).toHaveCount(0);
     await button(owner, "Month").click();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "home.png"),
       fullPage: true,
@@ -208,6 +209,7 @@ const server = http.createServer((req, res) => {
     await overview.scrollIntoViewIfNeeded();
     await expect(overview).toBeInViewport();
     await expect(overview.locator("svg")).toHaveCount(1);
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "dashboard-chart.png"),
       fullPage: true,
@@ -238,6 +240,7 @@ const server = http.createServer((req, res) => {
       owner.getByText("Recorded income", { exact: false }),
     ).toBeVisible();
     await button(owner, "Spending").click();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "insights.png"),
       fullPage: true,
@@ -386,6 +389,7 @@ const server = http.createServer((req, res) => {
     await owner.reload();
     await section(owner, "Loans");
     await expect(button(owner, "Open loan Bike loan")).toContainText("₹11,500");
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "loans.png"),
       fullPage: true,
@@ -421,6 +425,7 @@ const server = http.createServer((req, res) => {
     ).toBeVisible();
     await button(owner, "Show payment schedule").click();
     await expect(owner.getByText("#1 · ", { exact: false })).toBeVisible();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "interest-plan.png"),
       fullPage: true,
@@ -434,6 +439,7 @@ const server = http.createServer((req, res) => {
     await expect(
       owner.getByText("Interest plan EMI · ₹8,884.88", { exact: true }),
     ).toBeVisible();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "others.png"),
       fullPage: true,
@@ -455,6 +461,7 @@ const server = http.createServer((req, res) => {
     await expect(
       owner.getByLabel("Goal photo").filter({ visible: true }),
     ).toBeVisible();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "goal-photo.png"),
       fullPage: true,
@@ -473,6 +480,7 @@ const server = http.createServer((req, res) => {
     await expect(
       owner.locator('img[src^="data:image/jpeg"]').filter({ visible: true }),
     ).toBeVisible();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "profile-photo.png"),
       fullPage: true,
@@ -534,6 +542,7 @@ const server = http.createServer((req, res) => {
     await expect(
       owner.getByText("Who owes whom", { exact: true }),
     ).toBeVisible();
+    await owner.waitForTimeout(650);
     await owner.screenshot({
       path: path.join(temp, "shared-bills.png"),
       fullPage: true,
