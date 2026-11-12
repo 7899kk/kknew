@@ -1,6 +1,6 @@
 # Pro Financer 1.2.0 — implementation and verification
 
-The source version is 1.2.0 (Android version code 8). No APK or GitHub release was published from this workspace.
+The source version is 1.2.0 (Android version code 8). The [1.2.0 preview APK](https://github.com/7899kk/kknew/releases/tag/v1.2.0-j7) is published from compiled application commit `f88c48c3b8598958f5f435d79418ea22726736dc`. Later commits refine the emulator test automation and documentation without changing the application source.
 
 ## Behavior
 
@@ -30,13 +30,17 @@ Bill splitting uses the app's own theme, a three-step guide, plain-language shar
 - Expo web export passed. `node scripts/profinancer-web.test.cjs <export-directory>` exercised legacy migration, budget creation, group expenses, full repayment/restart, organizer-to-friend file sharing, expense proposal/approval, encrypted download, wrong password handling and confirmed restore in Chromium.
 - Kotlin 2.1.20 compiled and ran 47 parser cases plus reference/refund fingerprint checks. The parser, queue store, listener, notification alerts and reply receiver also compiled against Android SDK 36 using stubbed resource IDs. This is a source/API compile check, not an APK or on-device test.
 
-## Android validation remaining
+## Published Android validation
 
-Full Gradle compilation was attempted after installing Android SDK/NDK and Java 17. It ran out of disk space while expanding Gradle dependency transforms on the approximately 8 GB workspace. Generated transforms were removed afterward. No release APK was produced and no emulator or physical-device test was completed here.
+- [Native build run](https://github.com/7899kk/kknew/actions/runs/43066669370): ARM32 + ARM64 release compilation, native parser tests, manifest checks and signature verification passed. The emulator build includes x86 and x86_64. Local native compilation had exceeded the workspace disk capacity; GitHub Actions produced the verified build.
+- [Android 7 and Android 9 device checks](https://github.com/7899kk/kknew/actions/runs/43072602876): finance, household budgets, restart persistence, real mock-bank notification capture, duplicate prevention, debit-reason prompts and background inline replies passed.
+- [Android 16 check and publication](https://github.com/7899kk/kknew/actions/runs/43074513514): current-Android consent flow and the same finance/notification tests passed. The workflow validated that the older-platform passes and both APK artifacts use identical application source before publishing.
+- The emulator driver scrolls covered controls into view, permits modal submit buttons, waits for onboarding readiness and handles the additional current-Android notification-access switch. Rechecks reuse compiled artifacts only after verifying unchanged app source and dependencies; they do not bypass failed checks.
+- The direct published APK was downloaded successfully and independently checked against GitHub's uploaded-asset digest. Manifest: `com.profinancer.app`, version `1.2.0` / code `8`, min SDK `24`, target SDK `36`, architectures `armeabi-v7a` and `arm64-v8a`. APK signatures verify for API 24 through 36.
 
-CI now uses Node 24, checks the shared-group browser flow, builds ARM32 + ARM64 release libraries, and includes Android 7/API 24, Android 9/API 28 and current Android/API 36 emulator flows. The new release has its own tag, preserving the published 1.1.5 APK. These changed CI workflows have not been run from this workspace.
+APK SHA-256: `60b4d03d2b3c75fa515ff427b6ec14aaed7083283ff78a6d60ac99eff43c091d`.
 
-Before distributing 1.2.0, require the full native build and emulator flows to pass. Also test on an older Samsung and a current Android phone: permission revocation/re-enable, battery restrictions, background/inline reason replies, storage failure/restart, file sharing/import, and encrypted backup recovery. Notification access can be blocked by Android or device policy; force-stop prevents capture. Synthetic parser fixtures do not establish support for every real bank notification format.
+The release remains a preview using the public Android test signing key. Physical Samsung/current-phone installation, battery restrictions and real bank notification variants still need device testing. Notification access can be blocked by Android or device policy; force-stop prevents capture. Synthetic fixtures do not establish support for every real bank notification format.
 
 ## Reproduce
 

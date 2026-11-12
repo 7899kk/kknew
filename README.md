@@ -2,13 +2,19 @@
 
 Expo / React Native app with local finance records, Activity and Android payment notification capture.
 
+## Download Pro Financer 1.2.0
+
+**[Download the Android APK](https://github.com/7899kk/kknew/releases/download/v1.2.0-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.2.0-j7)
+
+Android 7/API 24 or newer, with both 32-bit and 64-bit ARM support (approximately 55 MB). This is a personal preview build signed with the Android test key. Finance and notification flows passed Android 7, 9 and 16 emulator checks; physical-phone testing remains required.
+
 ## Current source: 1.2.0
 
 This checkout adds SQLite ledger migration/recovery, stronger payment-capture validation and health status, offline group snapshots and organizer-approved proposals, partial/full repayments with reversal history, password-encrypted backup/restore, monthly category budgets and reports. Captured payment messages include the amount, day, date and time; spending insights show how much more or less you spent than the previous comparable period. Bill sharing has a guided flow and an in-app summary. Investments stay removed; no paid market API or hosted group backend is required.
 
-Open **Dashboard → Budgets and reports**, **Split → Create group / Import group or proposal file**, **Activity → Capture health**, or **Profile → Backup and recovery**. Share group snapshots to friends; they can send proposal files back for your approval. Files do not verify identities or bank payments.
+Open **Dashboard → Budgets and reports**, **Split → Create group / Open a shared bill or update**, **Activity → Capture health**, or **Profile → Backup and recovery**. Share group snapshots to friends; they can send proposal files back for your approval. Files do not verify identities or bank payments.
 
-[Verification and remaining phone checks](VERIFICATION-1.2.0.md) explain the tests and limits. The source changes are not yet published as an APK. The existing 1.1.5 download below is the previous build.
+[Verification and remaining phone checks](VERIFICATION-1.2.0.md) explain the tests and limits. Version 1.2.0 is published above. The 1.1.5 download below is retained as release history.
 
 ## Previously published Android APK (1.1.5)
 
