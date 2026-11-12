@@ -4,7 +4,9 @@ Android personal finance app built with Expo / React Native. Finance data stays 
 
 ## Download
 
-[Published 1.2.0 APK](https://github.com/7899kk/kknew/releases/download/v1.2.0-j7/Pro-Financer-J7.apk). Source is now **1.3.0**, Android version code **9**; its replacement APK is published only after native build and emulator checks pass.
+**[Download the 1.3.0 APK](https://github.com/7899kk/kknew/releases/download/v1.3.0-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.3.0-j7)
+
+Version **1.3.0**, Android code **9**. Finance and real emulator SMS flows passed Android 7, 9 and 16 checks. The public APK download, hash, manifest and signatures were independently verified.
 
 Android 7/API 24 or newer, ARM32 and ARM64. Personal preview signed with the Android test key. Physical-phone and real bank format checks remain necessary.
 
