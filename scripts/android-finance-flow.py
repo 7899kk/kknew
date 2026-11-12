@@ -206,9 +206,9 @@ if __name__ == "__main__":
         adb('shell','am','start','-W','-n','com.profinancer.app/.MainActivity');time.sleep(6)
         tap('Split');contains('Weekend');contains('Arun, Priya, Karthik');save('group-people-after-restart')
 
-        tap('Loans');tap('Add loan');tap('Existing balance')
+        tap('Loans');tap('Add loan')
         enter('Loan name','Bike');enter('Lender','Bank')
-        enter('Total balance to repay','12000');enter('Monthly payment','2000')
+        enter('Loan amount','12000');enter('Monthly payment (optional)','2000')
         tap('Save loan');tap('Home');contains('95,500');save('loan-monthly-reserve')
         tap('Loans');tap('Open loan Bike');tap('Record repayment')
         # Default amount is the next installment, 2000; no cash transaction is created.
