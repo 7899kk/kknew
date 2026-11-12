@@ -7,7 +7,7 @@ object SmsPaymentParser {
   private val direction = "(?:debited|credited|paid|sent|spent|withdrawn|received)"
   fun parse(sender:String, text:String):MoneyEvent? {
     // Reuse failure, pending, OTP, promotion and strict amount validation guards.
-    if(Regex("\\b(?:timed?\\s*out|timeout|insufficient\\s+funds|not\\s+processed|could\\s+not|(?:will|would|may)\\s+be\\s+(?:credited|debited)|to\\s+be\\s+(?:credited|debited))\\b",RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
+    if(Regex("\\b(?:timed?[\\s-]*out|timeout|unable|insufficient\\s+funds|not\\s+processed|could\\s+not|(?:will|would|may)\\s+be\\s+(?:credited|debited)|to\\s+be\\s+(?:credited|debited))\\b",RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
     val base=MoneyParser.parse(text) ?: return null
     val bankTemplate=Regex("\\b(?:a/c|ac|acct|account|card|upi)\\b",RegexOption.IGNORE_CASE).containsMatchIn(text)
     if(!trusted.matches(sender) && !bankTemplate) return null

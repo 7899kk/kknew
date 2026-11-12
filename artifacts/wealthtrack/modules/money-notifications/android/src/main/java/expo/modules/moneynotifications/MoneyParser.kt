@@ -7,7 +7,7 @@ object MoneyParser {
   private val amountFormat = Regex("(?:[0-9]+|[1-9][0-9]{0,2}(?:,[0-9]{3})+|[1-9][0-9]?(?:,[0-9]{2})*,[0-9]{3})(?:\\.[0-9]{1,2})?")
   fun parse(text: String): MoneyEvent? {
     if (Regex("\\b(otp|one.time.password|verification.code|authentication.code|promo|offer|cashback.offer)\\b", RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
-    if (Regex("\\b(failed|declined|unsuccessful|cancelled|canceled|pending|processing|requested|request|request.to.pay|due|reminder|mandate|scheduled)\\b", RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
+    if (Regex("\\b(failed|failure|fail|declined|rejected|aborted|unsuccessful(?:ly)?|cancelled|canceled|pending|processing|requested|request|request.to.pay|due|reminder|mandate|scheduled)\\b", RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
     if (Regex("\\b(?:not|never)\\s+(?:(?:yet|been|successfully)\\s+)*(?:successful|completed|paid|sent|received|credited|debited)\\b", RegexOption.IGNORE_CASE).containsMatchIn(text)) return null
     val rawAmounts = money.findAll(text).map { it.groupValues[1] }.toList()
     if (rawAmounts.isEmpty() || rawAmounts.any { !amountFormat.matches(it) }) return null

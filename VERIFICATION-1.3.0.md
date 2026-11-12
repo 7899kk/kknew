@@ -10,7 +10,7 @@ Local checks:
 
 - TypeScript typecheck passed.
 - Finance regressions and SQLite/encryption/share/replay stress tests passed, including previous-month saving plans, first-month estimates, shared goal allocation and SMS source/time imports.
-- 47 native notification-parser cases and 25 bank SMS cases passed. Native SMS receiver, recovery, queue and alerts compile against Android SDK 36. Full module/APK compilation and device checks are recorded below once completed.
+- 47 native notification-parser cases and 31 bank SMS cases passed. Native SMS receiver, recovery, queue and alerts compile against Android SDK 36. Full module/APK compilation and device checks are recorded below once completed.
 - Expo web export and Chromium financial workflows passed. Extended UI checks cover dashboard breakdowns, tab headers, profile image selection and restart, styled tracking settings, group member chips, sharing/approval/repayment and encrypted backup/restore.
 
 The emulator SMS test uses actual telephony delivery, permission consent, duplicate/failure/OTP checks, debit naming, background delivery and restart. Where an emulator rejects alphanumeric sender IDs, a numeric sender requires review; trusted sender auto-booking is covered by pure Kotlin cases. These fixtures do not establish support for every real bank SMS format. Physical Samsung installation, denied permissions, OEM battery limits and real bank variants still need phone checks.
