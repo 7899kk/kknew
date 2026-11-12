@@ -4,11 +4,20 @@ Android personal finance app built with Expo / React Native. Finance data stays 
 
 ## Download
 
-**[Download the 1.5.0 APK](https://github.com/7899kk/kknew/releases/download/v1.5.0-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.5.0-j7)
+**[Download the 1.6.0 APK](https://github.com/7899kk/kknew/releases/download/v1.6.0-j7/Pro-Financer-J7.apk)** · [Release details](https://github.com/7899kk/kknew/releases/tag/v1.6.0-j7)
 
-Version **1.5.0**, Android code **12**. Finance and real emulator SMS flows are verified on Android 7, 9 and 16; the published APK is checked independently for version, manifest, checksum and signatures.
+Version **1.6.0**, Android code **13**. Finance and real emulator SMS flows are verified on Android 7, 9 and 16; the published APK is checked independently for version, manifest, checksum and signatures.
 
 Android 7/API 24 or newer, ARM32 and ARM64. Personal preview signed with the Android test key. Physical-phone and real bank format checks remain necessary.
+
+## What changed in 1.6.0
+
+- Restores the original classic teal layouts for Dashboard, Activity, Expenses, Goals, Dues, header and navigation, including the balance card and finance pie chart. The central **Add** tab is removed. The original tabs remain Dashboard, Expenses, Activity, Dues, Goals, Split and Profile. Loans opens from its dashboard card or the Loans option in Profile; reminder controls are inside Loans. A matching teal-and-gold PF logo replaces the ivory logo.
+- Record expenses inside **Expenses → +**. Activity shows an explicit **Expense** or **Income** label as well as the minus/plus sign. A transaction's type comes from its ledger collection, not its category or description. Existing entries can be corrected in the edit form; direction correction moves one entry atomically and keeps captured-message replay IDs. A matching automatic repeat cannot undo a user correction. Undo a linked loan repayment before changing that cash entry's direction.
+- SMS understands debit, DR, withdrawal and purchase wording. Messages describing a merchant or beneficiary receiving money remain in Review instead of being assumed to be income to the phone owner. Ambiguous and uncertain messages still stay outside totals. A new bank format needs checking against an anonymized real message; this is not a universal SMS parser.
+- Loan interest defaults to **0%**. Enter the amount and either a monthly payment or a term; the other can be calculated. The name/lender may be left blank and receive visible default labels. Save validation is shown clearly, and the form waits for a successful save. A new saved loan is highlighted and the list returns to the top. Existing agreed-balance mode remains supported.
+- Home includes each loan's remaining balance, monthly installment and next due date, with unpaid monthly loan reserves in available money and all pending loan balances in Dues. Loan/bill payment records continue to update dues only; real cash entries are added or matched separately.
+- Existing data, interest plans, loan repayments, photos, encrypted backups and local reminders are retained. No schema reset or bank/API subscription is required.
 
 ## What changed in 1.5.0
 
@@ -65,7 +74,7 @@ node scripts/profinancer-web.test.cjs artifacts/wealthtrack/dist
 
 Java 17, Android SDK 36 and NDK 27.1.12297006 are needed for native builds. Run Expo prebuild, then `:money-notifications:testReleaseUnitTest` and `:app:assembleRelease`. The GitHub Actions workflow builds ARM32/64 and tests Android 7, 9 and 16 before publication. Expo Go and web cannot read SMS.
 
-See [1.5.0 verification](VERIFICATION-1.5.0.md), [1.4.0 verification](VERIFICATION-1.4.0.md), [1.3.1 verification](VERIFICATION-1.3.1.md), [1.3.0 SMS release evidence](VERIFICATION-1.3.0.md) and [earlier release evidence](VERIFICATION-1.2.0.md).
+See [1.6.0 verification](VERIFICATION-1.6.0.md), [1.5.0 verification](VERIFICATION-1.5.0.md), [1.4.0 verification](VERIFICATION-1.4.0.md), [1.3.1 verification](VERIFICATION-1.3.1.md), [1.3.0 SMS release evidence](VERIFICATION-1.3.0.md) and [earlier release evidence](VERIFICATION-1.2.0.md).
 
 ## Optional Google sign-in
 
