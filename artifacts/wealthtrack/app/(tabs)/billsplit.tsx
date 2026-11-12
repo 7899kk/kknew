@@ -1,7 +1,15 @@
 import * as Clipboard from "expo-clipboard";
 import { confirmAction } from "@/utils/dialogs";
 import React, { useState } from "react";
-import { Alert, Modal, ScrollView, Share, Text, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  Share,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 import * as Crypto from "expo-crypto";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, BillGroup } from "@/context/AppContext";
@@ -33,6 +41,7 @@ export default function BillSplitScreen() {
     insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<string | null>(null),
     [form, setForm] = useState<Form>(null);
+  const [person, setPerson] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [name, setName] = useState(""),
     [members, setMembers] = useState(""),
@@ -61,6 +70,7 @@ export default function BillSplitScreen() {
     setForm(kind);
     setName("");
     setMembers("");
+    setPerson("");
     setDescription("");
     setAmount(value);
     setFrom(a || g?.members[0] || "");
@@ -181,10 +191,7 @@ export default function BillSplitScreen() {
   }
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ProFinancierHeader
-        title={g ? g.name : "Split bills"}
-        subtitle="Friends, shared expenses and payments"
-      />
+      <ProFinancierHeader title={g ? g.name : "Split bills"} />
       <ScrollView
         contentContainerStyle={{
           padding: 16,
@@ -201,31 +208,6 @@ export default function BillSplitScreen() {
         {!g ? (
           <>
             <Button title="Create group" onPress={() => open("group")} />
-            <Card>
-              <Text
-                style={{
-                  color: colors.foreground,
-                  fontSize: 18,
-                  fontWeight: "700",
-                }}
-              >
-                Split a bill in 3 steps
-              </Text>
-              <Text style={{ color: colors.foreground, marginTop: 10 }}>
-                1. Create a group, add friends’ names and enter who paid.
-              </Text>
-              <Text style={{ color: colors.foreground, marginTop: 8 }}>
-                2. Share the group. Friends open it in Pro Financer and send
-                their expenses or payments back to you.
-              </Text>
-              <Text style={{ color: colors.foreground, marginTop: 8 }}>
-                3. Approve updates, mark repayments as paid, then share the
-                latest group so everyone sees the balance.
-              </Text>
-              <Text style={{ color: colors.mutedForeground, marginTop: 10 }}>
-                No sign-in required. Only the selected group is shared.
-              </Text>
-            </Card>
             {app.billGroups.map((group) => (
               <Card key={group.id}>
                 <Text
@@ -262,8 +244,7 @@ export default function BillSplitScreen() {
             ))}
             {!app.billGroups.length && (
               <Text style={{ color: colors.mutedForeground }}>
-                Create a group for a trip, meal or household, or open a bill
-                sent by a friend.
+                No groups yet.
               </Text>
             )}
           </>
@@ -275,14 +256,7 @@ export default function BillSplitScreen() {
               onPress={() => setSelected(null)}
             />
             <Text style={{ color: colors.foreground }}>
-              {g.members.join(", ")} ·{" "}
-              {g.readOnly
-                ? "Shared with you. Send new expenses or payments to the group owner below."
-                : "You manage this group."}
-            </Text>
-            <Text style={{ color: colors.mutedForeground }}>
-              Confirm reported payments with your friends. Share the latest
-              group after making changes so everyone has the same balances.
+              {g.members.join(" · ")}
             </Text>
             <Button
               title="View group summary"
@@ -352,8 +326,7 @@ export default function BillSplitScreen() {
                 </Text>
               )}
               <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>
-                Reported repayments reduce group balances only. This app does
-                not transfer money.
+                Records only · no money transfers
               </Text>
             </Card>
             {(g.proposals || []).map((p) => (
@@ -397,8 +370,7 @@ export default function BillSplitScreen() {
                       {Object.entries(g.memberIds || {}).find(
                         ([, id]) => id === p.claimedMember,
                       )?.[0] || p.claimedMember}
-                      . Confirm the payer below. All other participants remain
-                      as displayed.
+                      . Choose payer:
                     </Text>
                     <PillSelector
                       options={g.members}
@@ -641,10 +613,58 @@ export default function BillSplitScreen() {
             <>
               <Input label="Group name" value={name} onChangeText={setName} />
               <Input
-                label="Members, separated by commas"
-                value={members}
-                onChangeText={setMembers}
+                label="Person’s name"
+                value={person}
+                onChangeText={setPerson}
               />
+              <Button
+                title="Add person"
+                variant="secondary"
+                onPress={() => {
+                  const value = person.trim();
+                  if (!value || value.includes(",") || value.length > 100) {
+                    setError("Enter one name, up to 100 characters.");
+                    return;
+                  }
+                  const list = members.split(",").filter(Boolean);
+                  if (
+                    list.some((n) => n.toLowerCase() === value.toLowerCase())
+                  ) {
+                    setError("This name is already in the group.");
+                    return;
+                  }
+                  setMembers([...list, value].join(","));
+                  setPerson("");
+                  setError("");
+                }}
+              />
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {members
+                  .split(",")
+                  .filter(Boolean)
+                  .map((member) => (
+                    <Pressable
+                      key={member}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${member}`}
+                      onPress={() =>
+                        setMembers(
+                          members
+                            .split(",")
+                            .filter((n) => n !== member)
+                            .join(","),
+                        )
+                      }
+                      style={{
+                        backgroundColor: colors.primary + "18",
+                        padding: 12,
+                        borderRadius: 20,
+                      }}
+                    >
+                      <Text style={{ color: colors.primary }}>{member} ×</Text>
+                    </Pressable>
+                  ))}
+              </View>
             </>
           ) : (
             <>

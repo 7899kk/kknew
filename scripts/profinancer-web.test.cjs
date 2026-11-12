@@ -78,10 +78,10 @@ const server = http.createServer((req, res) => {
     }, initial);
     await p.goto(base);
     await expect(
-      p.getByText("Available to spend:", { exact: false }),
+      p.getByText("Available to spend", { exact: false }),
     ).toBeVisible();
     await expect(
-      p.getByText("Available to spend:", { exact: false }),
+      p.getByText("Available to spend", { exact: false }),
     ).toBeInViewport();
     return p;
   }
@@ -106,6 +106,32 @@ const server = http.createServer((req, res) => {
   }
   try {
     const owner = await newUser();
+    await owner.screenshot({
+      path: path.join(temp, "home.png"),
+      fullPage: true,
+    });
+    for (const [buttonName, detailLabel] of [
+      ["Open balance details", "Starting savings"],
+      ["Open available balance details", "Recurring bills reserved"],
+      ["Open income details", "Salary estimate"],
+      ["Open expenses details", "Total expenses"],
+      ["Open savings details", "Reserved for dreams"],
+      ["Open debts & credits details", "Net receivable"],
+    ]) {
+      await button(owner, buttonName).click();
+      await expect(owner.getByText(detailLabel, { exact: true })).toBeVisible();
+      await button(owner, "Close").click();
+    }
+    for (const tab of ["Dues", "Goals", "Profile"]) {
+      await owner.getByRole("tab", { name: new RegExp(tab) }).click();
+      await expect(
+        owner.getByText("Hi, Test", { exact: true }).last(),
+      ).toBeVisible();
+      await expect(
+        owner.getByText("PRO FINANCIER", { exact: true }).last(),
+      ).toBeVisible();
+    }
+    await owner.getByRole("tab", { name: /Dashboard/ }).click();
     await button(owner, "Open budgets and reports").click();
     await fill(owner, "Limit (INR)", "1000");
     await button(owner, "Save monthly limit").click();
@@ -119,7 +145,10 @@ const server = http.createServer((req, res) => {
     await owner.getByRole("tab", { name: /Split/ }).click();
     await button(owner, "Create group").click();
     await fill(owner, "Group name", "Trip");
-    await fill(owner, "Members, separated by commas", "A, B, C");
+    for (const name of ["A", "B", "C"]) {
+      await fill(owner, "Person’s name", name);
+      await button(owner, "Add person").click();
+    }
     await button(owner, "Save").click();
     await expect(owner.getByLabel("Group name", { exact: true })).toHaveCount(
       0,
@@ -179,6 +208,28 @@ const server = http.createServer((req, res) => {
     await button(owner, "Approve update").click();
     await expect(owner.getByText("Taxi · ₹60", { exact: false })).toBeVisible();
     await owner.getByRole("tab", { name: /Profile/ }).click();
+    const photoPicker = owner.waitForEvent("filechooser");
+    await button(owner, "Change profile photo").click();
+    await (
+      await photoPicker
+    ).setFiles(path.resolve("artifacts/wealthtrack/assets/images/logo.png"));
+
+    await expect(
+      owner.locator('img[src^="data:image/jpeg"]').filter({ visible: true }),
+    ).toBeVisible();
+    await owner.reload();
+    await expect(
+      owner.locator('img[src^="data:image/jpeg"]').filter({ visible: true }),
+    ).toBeVisible();
+    await owner.screenshot({
+      path: path.join(temp, "profile-photo.png"),
+      fullPage: true,
+    });
+    await button(owner, "Payment tracking settings").click();
+    await expect(
+      owner.getByText("Track payments", { exact: true }),
+    ).toBeVisible();
+    await button(owner, "Done").click();
     await button(owner, "Export encrypted backup").click();
     await fill(owner, "Backup password", "browser test backup password");
     await fill(
@@ -214,6 +265,8 @@ const server = http.createServer((req, res) => {
     ).toHaveCount(0);
     await expect(button(owner, "Export encrypted backup")).toBeVisible();
     await owner.getByRole("tab", { name: /Split/ }).click();
+    if (await button(owner, "Open group").count())
+      await button(owner, "Open group").click();
     await expect(owner.getByText("Taxi · ₹60", { exact: false })).toBeVisible();
     await expect(
       owner.getByText("Who owes whom", { exact: true }),

@@ -64,7 +64,9 @@ with zipfile.ZipFile(apk) as archive:
     assert manifest['versionName']==config['version'] and manifest['versionCode']==config['android']['versionCode']
     assert sdk['minSdkVersion']==24, sdk
     permissions={attrs['name'] for name,attrs in elements if name=='uses-permission'}
-    allowed={'android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
+    allowed={'android.permission.READ_SMS','android.permission.RECEIVE_SMS','android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.POST_NOTIFICATIONS','android.permission.VIBRATE','com.profinancer.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
     assert permissions<=allowed, 'Unexpected permissions: '+str(permissions-allowed)
     assert any(name=='service' and attrs.get('name')=='expo.modules.moneynotifications.MoneyListener' and attrs.get('permission')=='android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' for name,attrs in elements), 'Automatic capture listener missing'
+    assert {'android.permission.READ_SMS','android.permission.RECEIVE_SMS'} <= permissions
+    assert any(name=='receiver' and attrs.get('name')=='expo.modules.moneynotifications.SmsReceiver' and attrs.get('permission')=='android.permission.BROADCAST_SMS' and attrs.get('exported') in (True,1,0xffffffff) for name,attrs in elements), 'Protected SMS receiver missing'
     print(json.dumps({'manifest':manifest,'sdk':sdk,'permissions':sorted(permissions),'architectures':sorted(architectures),'size_bytes':apk.stat().st_size,'sha256':hashlib.sha256(apk.read_bytes()).hexdigest()},indent=2))

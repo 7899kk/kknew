@@ -30,12 +30,6 @@ export function SpendingInsight({
       >
         {comparison.message}
       </Text>
-      <Text style={{ color: c.mutedForeground, marginTop: 8 }}>
-        {comparison.isCurrent
-          ? "Compared with the same number of days last month."
-          : "Compared with the previous full month."}{" "}
-        Only expenses saved in this app are included.
-      </Text>
       {comparison.hasPrevious &&
         comparison.increases.map((e) => (
           <Text key={e.category} style={{ color: c.foreground, marginTop: 8 }}>

@@ -1,3 +1,4 @@
+import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -183,6 +184,7 @@ export default function ExpensesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ProFinancierHeader title="Expenses" />
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}

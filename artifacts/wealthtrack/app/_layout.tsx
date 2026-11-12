@@ -1,3 +1,4 @@
+import { TrackingSettings } from "@/components/TrackingSettings";
 import { PaymentToast } from "@/components/PaymentToast";
 import { useFonts } from "expo-font";
 import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
@@ -67,6 +68,7 @@ export default function RootLayout() {
               <KeyboardProvider>
                 <AppProvider>
                   <RootLayoutNav />
+                  <TrackingSettings automatic />
                   <PaymentToast />
                   <DebitReasonPrompt />
                 </AppProvider>

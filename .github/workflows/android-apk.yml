@@ -117,54 +117,55 @@ jobs:
           path: artifacts/wealthtrack/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
           if-no-files-found: error
-      - name: Build isolated mock bank notification fixture
-        run: bash scripts/build-bank-fixture.sh
+  device-tests:
+    needs: startup
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 24, arch: x86, target: default, profile: Nexus 5, ram: 1536M}
+          - {api: 28, arch: x86, target: default, profile: Nexus 5, ram: 1536M}
+          - {api: 36, arch: x86_64, target: google_apis, profile: pixel_2, ram: 2048M}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: J7-x86-runtime
+          path: artifacts/wealthtrack/android/app/build/outputs/apk/release
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Test income, expense, goals and restart on Android 7
+      - name: Test finance and SMS capture
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 24
-          arch: x86
-          target: default
-          profile: Nexus 5
-          ram-size: 1536M
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          target: ${{ matrix.target }}
+          profile: ${{ matrix.profile }}
+          ram-size: ${{ matrix.ram }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash scripts/android-startup-smoke.sh 24
-      - name: Test income, expense, goals and restart on Android 9
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 28
-          arch: x86
-          target: default
-          profile: Nexus 5
-          ram-size: 1536M
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash scripts/android-startup-smoke.sh 28
-      - name: Test finance and notification capture on current Android
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          target: google_apis
-          profile: pixel_2
-          ram-size: 2048M
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash scripts/android-startup-smoke.sh 36
+          script: bash scripts/android-startup-smoke.sh ${{ matrix.api }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Android-startup-evidence
+          name: Android-startup-evidence-${{ matrix.api }}
           path: startup-evidence/
           if-no-files-found: ignore
   publish:
-    needs: [apk, startup]
+    needs: [apk, device-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -183,7 +184,7 @@ jobs:
           sha256sum -c apk-download/SHA256SUMS.txt
           changes=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...main" --jq '.files[] | select((.filename | startswith("artifacts/wealthtrack/")) or .filename == "pnpm-lock.yaml" or .filename == "pnpm-workspace.yaml" or .filename == "package.json") | .filename')
           test -z "$changes"
-          if ! gh release view v1.2.0-j7 >/dev/null 2>&1; then
-            gh release create v1.2.0-j7 --target "$GITHUB_SHA" --title "Pro Financer 1.2.0 for Android 7+" --notes "Local SQLite ledger with retained migration data, stronger payment-capture validation and health diagnostics, file-based shared groups with organizer-approved proposals, partial and full repayments with reversal history, password-encrypted backup and restore, category budgets and monthly reports. No paid APIs or hosted group backend. CI validates finance regressions and Android 7/9 startup flows; physical-device notification behavior still needs testing." --prerelease --latest=false
+          if ! gh release view v1.3.0-j7 >/dev/null 2>&1; then
+            gh release create v1.3.0-j7 --target "$GITHUB_SHA" --title "Pro Financer 1.3.0 for Android 7+" --notes "Bank SMS capture with in-app permission setup, debit/credit receipts with dates and times, failed-payment filtering and review for uncertain messages. Cleaner Activity, Home and shared bills, dashboard card breakdowns, persistent profile photos, debts and credits, and shared monthly dream-saving suggestions. SQLite ledger, encrypted backups and offline group sharing. Android 7+ preview; physical-device checks remain required." --prerelease --latest=false
           fi
-          gh release upload v1.2.0-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber
+          gh release upload v1.3.0-j7 apk-download/Pro-Financer-J7.apk apk-download/SHA256SUMS.txt apk-download/SIGNATURE-VERIFICATION.txt apk-download/APK-VERIFICATION.json --clobber

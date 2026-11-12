@@ -1,17 +1,8 @@
+import { TrackingSettings } from "@/components/TrackingSettings";
 import { transactionDateLabel } from "@/utils/transactionDetails";
-import { LatestPayment } from "@/components/LatestPayment";
 import { validMoney, validDate } from "@/utils/financeValidation";
-import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  AppState,
-  Modal,
-  Platform,
-  ScrollView,
-  Switch,
-  Text,
-  View,
-} from "react-native";
+import React, { useState } from "react";
+import { Alert, Modal, ScrollView, FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, Expense, ExpenseCategory } from "@/context/AppContext";
@@ -23,18 +14,9 @@ import {
   formatCurrencyFull,
 } from "@/components/UI";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
-import {
-  CaptureStatus,
-  notificationBridge,
-  sourceNames,
-} from "@/utils/notificationBridge";
+import { sourceNames } from "@/utils/notificationBridge";
 
-import { CaptureHealth } from "@/components/CaptureHealth";
-import {
-  debitReasonDetails,
-  expenseCategories,
-  pendingDebitReasons,
-} from "@/utils/debitReasons";
+import { debitReasonDetails, expenseCategories } from "@/utils/debitReasons";
 
 type Editing = {
   id?: string;
@@ -49,51 +31,9 @@ export default function ActivityScreen() {
   const app = useApp();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [status, setStatus] = useState<CaptureStatus>({
-    granted: false,
-    enabled: false,
-    overflow: false,
-  });
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState<Editing | null>(null);
   const [reviewKind, setReviewKind] = useState("Expense");
-  const refresh = async () => {
-    if (notificationBridge)
-      try {
-        setStatus(await notificationBridge.status());
-        setError("");
-      } catch {
-        setError("Could not check notification access.");
-      }
-  };
-  useEffect(() => {
-    void refresh();
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") void refresh();
-    });
-    return () => sub.remove();
-  }, []);
-  const setCapture = async (value: boolean) => {
-    if (!notificationBridge) return;
-    setBusy(true);
-    try {
-      if (value && !status.granted) {
-        await notificationBridge.openSettings();
-      } else {
-        await notificationBridge.setEnabled(value);
-        if (value) await notificationBridge.requestNotifications();
-      }
-      await refresh();
-    } catch {
-      setError(
-        "Could not change capture settings. Use Android Settings > Notification access.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
   const save = () => {
     if (!editing) return;
     const amount = Number(editing.amount);
@@ -164,447 +104,209 @@ export default function ActivityScreen() {
   const rows = [
     ...app.expenses.map((e) => ({ ...e, kind: "expense" as const })),
     ...app.incomes.map((e) => ({ ...e, kind: "income" as const })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  ].sort(
+    (a, b) =>
+      b.date.localeCompare(a.date) || (b.timestamp || 0) - (a.timestamp || 0),
+  );
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ProFinancierHeader
-        title="Activity"
-        subtitle="Transactions and payment tracking"
-      />
-      <ScrollView
+      <ProFinancierHeader title="Activity" rightSlot={<TrackingSettings />} />
+      <FlatList
+        data={rows.filter(
+          (e) =>
+            filter === "All" ||
+            (filter === "Income" ? e.kind === "income" : e.kind === "expense"),
+        )}
+        keyExtractor={(e) => `${e.kind}-${e.id}`}
         contentContainerStyle={{
           padding: 16,
           paddingBottom: 100 + insets.bottom,
           gap: 16,
         }}
-      >
-        <LatestPayment />
-        <CaptureHealth status={status} onRefresh={refresh} />
-        <Card>
-          <Text
-            style={{
-              color: colors.foreground,
-              fontSize: 18,
-              fontWeight: "700",
-            }}
-          >
-            Automatic payment tracking
-          </Text>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 14,
-              marginVertical: 12,
-            }}
-          >
-            {!notificationBridge
-              ? Platform.OS === "web"
-                ? "Phone notifications are available only in the Android APK. This web view supports manual entries."
-                : "A custom Android build is required. Expo Go cannot capture payment notifications."
-              : "Allow notification access, then enable tracking. Supported payment alerts are processed on this phone. OTPs and unrelated notifications are discarded."}
-          </Text>
-          {notificationBridge && (
-            <>
-              <Text style={{ color: colors.foreground, fontSize: 14 }}>
-                Access: {status.granted ? "Allowed" : "Not allowed"} · Capture:{" "}
-                {status.enabled && status.granted ? "On" : "Off"}
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginVertical: 12,
-                }}
-              >
-                <Text style={{ color: colors.foreground, fontSize: 16 }}>
-                  Capture new payments
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        ListHeaderComponent={
+          <View style={{ gap: 16 }}>
+            {!!app.storageError && (
+              <Card>
+                <Text style={{ color: colors.destructive }}>
+                  {app.storageError}
                 </Text>
-                <Switch
-                  accessibilityLabel="Capture new payments"
-                  value={status.enabled && status.granted}
-                  disabled={busy}
-                  onValueChange={setCapture}
+                <Button
+                  title="Retry saving"
+                  variant="secondary"
+                  onPress={app.retrySave}
                 />
-              </View>
-              <Button
-                title="Notification access settings"
-                variant="secondary"
-                onPress={() => {
-                  notificationBridge
-                    ?.openSettings()
-                    .catch(() =>
-                      setError(
-                        "Open Android notification access settings manually.",
-                      ),
-                    );
-                }}
-              />
-              <Text
-                style={{
-                  color: colors.mutedForeground,
-                  fontSize: 14,
-                  marginTop: 12,
-                }}
-              >
-                Supported sources: {Object.values(sourceNames).join(", ")}.
-                Formats vary; ambiguous payments and refunds require review.
-                Without a transaction reference, alerts are never added
-                automatically. Self-transfers may need manual correction.
-              </Text>
-              <Text
-                style={{
-                  color: colors.mutedForeground,
-                  fontSize: 14,
-                  marginTop: 8,
-                }}
-              >
-                Capture continues while the app is closed when Android allows
-                it. Totals update when you reopen the app. Force-stop and some
-                battery restrictions can prevent capture. Notifications from
-                before you enabled tracking are not recovered.
-              </Text>
-            </>
-          )}
-          {status.overflow && (
-            <Text style={{ color: colors.destructive, marginTop: 12 }}>
-              Capture queue is full. Some notifications were not saved. Open
-              Activity regularly and check your bank statement for gaps.
-            </Text>
-          )}
-          {!!error && (
-            <Text style={{ color: colors.destructive, marginTop: 12 }}>
-              {error}
-            </Text>
-          )}
-        </Card>
-        {notificationBridge && (
-          <Card>
-            <Text
-              style={{
-                color: colors.foreground,
-                fontSize: 18,
-                fontWeight: "700",
-              }}
-            >
-              Payment notifications
-            </Text>
-            <Text style={{ color: colors.mutedForeground, marginVertical: 10 }}>
-              Get an alert for newly captured money and payments needing review.
-              Reply to a debit with Add reason without opening the app. In the
-              app, a compact panel asks what it was for. Label received salary
-              as Salary to offset your salary estimate; extra credits add to the
-              budget. Amounts are hidden on the lock screen.
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: colors.foreground }}>
-                Send payment alerts
-              </Text>
-              <Switch
-                accessibilityLabel="Send payment alerts"
-                value={status.alertsEnabled ?? true}
-                onValueChange={async (value) => {
-                  try {
-                    await notificationBridge!.setAlertsEnabled(value);
-                    await refresh();
-                  } catch {
-                    setError("Could not change payment alerts.");
-                  }
-                }}
-              />
-            </View>
-            <Text style={{ color: colors.mutedForeground, marginVertical: 10 }}>
-              Android notification permission:{" "}
-              {status.notificationsGranted ? "Allowed" : "Not allowed"}
-            </Text>
-            {!status.notificationsGranted && (
-              <Button
-                title="Allow app notifications"
-                onPress={async () => {
-                  try {
-                    await notificationBridge!.requestNotifications();
-                    await refresh();
-                  } catch {
-                    setError(
-                      "Open Android Settings > Apps > Pro Financer > Notifications.",
-                    );
-                  }
-                }}
-              />
+              </Card>
+            )}
+            {app.paymentReviews.length > 0 && (
+              <Card>
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontSize: 18,
+                    fontWeight: "700",
+                  }}
+                >
+                  Needs review ({app.paymentReviews.length})
+                </Text>
+                {app.paymentReviews.map((e) => (
+                  <View
+                    key={e.id}
+                    style={{
+                      paddingVertical: 14,
+                      borderBottomWidth: 1,
+                      borderColor: colors.border,
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.foreground, fontSize: 16 }}>
+                      {formatCurrencyFull(e.amount)} ·{" "}
+                      {sourceNames[e.source] || e.source}
+                    </Text>
+                    <Text
+                      style={{ color: colors.mutedForeground, fontSize: 14 }}
+                    >
+                      {e.conflict
+                        ? "Conflicting payment"
+                        : e.status === "transfer"
+                          ? "Possible self-transfer"
+                          : "Check payment"}{" "}
+                      ·{" "}
+                      {new Date(e.timestamp).toLocaleString("en-IN", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </Text>
+                    <Button
+                      title="Review"
+                      variant="secondary"
+                      onPress={() => {
+                        setReviewKind("Expense");
+                        const d = new Date(e.timestamp);
+                        setEditing({
+                          id: e.id,
+                          kind: "review",
+                          amount: String(e.amount),
+                          notes: "",
+                          date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+                        });
+                      }}
+                    />
+                    <Button
+                      title="Dismiss"
+                      variant="ghost"
+                      onPress={() => app.resolvePayment(e.id, "ignore")}
+                    />
+                  </View>
+                ))}
+              </Card>
             )}
             <Button
-              title="Android notification settings"
-              variant="ghost"
-              onPress={() =>
-                notificationBridge!
-                  .openAppNotificationSettings()
-                  .catch(() =>
-                    setError("Could not open notification settings."),
-                  )
-              }
-            />
-            <Button
-              title="Test money received sound"
-              variant="secondary"
-              onPress={async () => {
-                try {
-                  const sent =
-                    await notificationBridge!.testNotification("income");
-                  if (!sent)
-                    Alert.alert(
-                      "Notifications are off",
-                      "Enable payment alerts and allow notifications in Android settings.",
-                    );
-                } catch {
-                  setError("Could not send the test alert.");
-                }
+              title="Add income"
+              icon="plus"
+              onPress={() => {
+                const d = new Date();
+                setEditing({
+                  kind: "income",
+                  amount: "",
+                  notes: "",
+                  name: "",
+                  category: "Other",
+                  date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+                });
               }}
             />
-            <Button
-              title="Test money sent sound"
-              variant="secondary"
-              onPress={async () => {
-                try {
-                  if (!(await notificationBridge!.testNotification("expense")))
-                    Alert.alert(
-                      "Notifications are off",
-                      "Enable app notifications and payment alerts.",
-                    );
-                } catch {
-                  setError("Could not send the test alert.");
-                }
-              }}
+            <PillSelector
+              options={["All", "Expenses", "Income"]}
+              value={filter}
+              onChange={setFilter}
             />
-            <Text style={{ color: colors.mutedForeground, marginTop: 10 }}>
-              Received money uses a rising chime; sent money uses a falling
-              chime. Android silent mode, Do Not Disturb and your channel
-              settings control whether sounds play.
-            </Text>
-          </Card>
-        )}
-        {app.incomes.some(
-          (e) => !e.category || e.category === "Uncategorized",
-        ) && (
-          <Card>
-            <Text style={{ color: colors.foreground, fontWeight: "700" }}>
-              Name your received money
-            </Text>
-            <Text style={{ color: colors.mutedForeground, marginTop: 8 }}>
-              New income already counts in your totals. Use Name income below to
-              label it Salary, Gift or anything you choose.
-            </Text>
-          </Card>
-        )}
-        {pendingDebitReasons(app.expenses).length > 0 && (
-          <Card>
-            <Text style={{ color: colors.expense, fontWeight: "700" }}>
-              Add payment reasons ({pendingDebitReasons(app.expenses).length})
-            </Text>
-            <Text style={{ color: colors.mutedForeground, marginTop: 8 }}>
-              These debits already count in your totals. Tap Add reason on a
-              transaction to tell us what it was for.
-            </Text>
-          </Card>
-        )}
-        {!!app.storageError && (
-          <Card>
-            <Text style={{ color: colors.destructive }}>
-              {app.storageError}
-            </Text>
-            <Button
-              title="Retry saving"
-              variant="secondary"
-              onPress={app.retrySave}
-            />
-          </Card>
-        )}
-        {app.paymentReviews.length > 0 && (
-          <Card>
+          </View>
+        }
+        ListEmptyComponent={
+          <Text style={{ color: colors.mutedForeground, textAlign: "center" }}>
+            No transactions yet.
+          </Text>
+        }
+        renderItem={({ item: e }) => (
+          <Card key={`${e.kind}-${e.id}`}>
             <Text
               style={{
-                color: colors.foreground,
-                fontSize: 18,
+                color: e.kind === "income" ? colors.success : colors.expense,
+                fontSize: 20,
                 fontWeight: "700",
               }}
             >
-              Needs review ({app.paymentReviews.length})
+              {e.kind === "income" ? "+" : "−"}
+              {formatCurrencyFull(e.amount)}
             </Text>
-            {app.paymentReviews.map((e) => (
-              <View
-                key={e.id}
-                style={{
-                  paddingVertical: 14,
-                  borderBottomWidth: 1,
-                  borderColor: colors.border,
-                  gap: 8,
-                }}
-              >
-                <Text style={{ color: colors.foreground, fontSize: 16 }}>
-                  {formatCurrencyFull(e.amount)} ·{" "}
-                  {sourceNames[e.source] || e.source}
-                </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
-                  {e.conflict
-                    ? "Conflicting alerts for the same reference — confirming one dismisses the other conflicting candidates"
-                    : e.status === "transfer"
-                      ? "Possible transfer between your accounts"
-                      : "Ambiguous alert or refund"}{" "}
-                  ·{" "}
-                  {new Date(e.timestamp).toLocaleString("en-IN", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  })}
-                </Text>
-                <Button
-                  title="Review amount and direction"
-                  variant="secondary"
-                  onPress={() => {
-                    setReviewKind("Expense");
-                    const d = new Date(e.timestamp);
-                    setEditing({
-                      id: e.id,
-                      kind: "review",
-                      amount: String(e.amount),
-                      notes: "",
-                      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
-                    });
-                  }}
-                />
-                <Button
-                  title="Ignore / own-account transfer"
-                  variant="ghost"
-                  onPress={() => app.resolvePayment(e.id, "ignore")}
-                />
-              </View>
-            ))}
+            <Text
+              style={{ color: colors.foreground, fontSize: 16, marginTop: 6 }}
+            >
+              {e.kind === "income"
+                ? e.name || "Money received"
+                : (e as Expense).needsReason
+                  ? "Payment reason needed"
+                  : e.notes || (e as Expense).category}
+            </Text>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: 14,
+                marginVertical: 8,
+              }}
+            >
+              {e.kind === "income" ? `${e.category || "Uncategorized"} · ` : ""}
+              {transactionDateLabel(e.date, e.time)} ·{" "}
+              {e.source
+                ? e.source.startsWith("sms:") || e.source.startsWith("Bank SMS")
+                  ? "Bank SMS"
+                  : sourceNames[e.source] || "Payment alert"
+                : "Manual entry"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Button
+                title={
+                  e.kind === "income"
+                    ? "Edit income"
+                    : (e as Expense).needsReason
+                      ? "Add reason"
+                      : "Edit"
+                }
+                variant="secondary"
+                style={{ flex: 1 }}
+                onPress={() =>
+                  setEditing({
+                    id: e.id,
+                    kind: e.kind,
+                    amount: String(e.amount),
+                    notes:
+                      e.kind === "expense" && (e as Expense).needsReason
+                        ? ""
+                        : e.notes || "",
+                    date: e.date,
+                    name: e.kind === "income" ? e.name : undefined,
+                    category: e.category,
+                  })
+                }
+              />
+              <Button
+                title="Delete"
+                variant="ghost"
+                style={{ flex: 1 }}
+                onPress={() => remove(e.id, e.kind)}
+              />
+            </View>
           </Card>
         )}
-        <Button
-          title="Add income"
-          icon="plus"
-          onPress={() => {
-            const d = new Date();
-            setEditing({
-              kind: "income",
-              amount: "",
-              notes: "",
-              name: "",
-              category: "Other",
-              date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
-            });
-          }}
-        />
-        <PillSelector
-          options={["All", "Expenses", "Income"]}
-          value={filter}
-          onChange={setFilter}
-        />
-        <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
-          Income labeled Salary offsets the matching planned salary. Other
-          credits add to your monthly estimate. Refunds should be matched
-          against the original expense before you adjust it.
-        </Text>
-        {rows
-          .filter(
-            (e) =>
-              filter === "All" ||
-              (filter === "Income"
-                ? e.kind === "income"
-                : e.kind === "expense"),
-          )
-          .map((e) => (
-            <Card key={`${e.kind}-${e.id}`}>
-              <Text
-                style={{
-                  color: e.kind === "income" ? colors.success : colors.expense,
-                  fontSize: 20,
-                  fontWeight: "700",
-                }}
-              >
-                {e.kind === "income" ? "+" : "−"}
-                {formatCurrencyFull(e.amount)}
-              </Text>
-              <Text
-                style={{ color: colors.foreground, fontSize: 16, marginTop: 6 }}
-              >
-                {e.kind === "income"
-                  ? e.name || "Money received"
-                  : (e as Expense).needsReason
-                    ? "Payment reason needed"
-                    : e.notes || (e as Expense).category}
-              </Text>
-              <Text
-                style={{
-                  color: colors.mutedForeground,
-                  fontSize: 14,
-                  marginVertical: 8,
-                }}
-              >
-                {e.kind === "income"
-                  ? `${e.category || "Uncategorized"} · `
-                  : ""}
-                {transactionDateLabel(e.date, e.time)} ·{" "}
-                {e.source ? `Notification · ${e.source}` : "Manual entry"}
-              </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Button
-                  title={
-                    e.kind === "income"
-                      ? "Name income / Edit"
-                      : (e as Expense).needsReason
-                        ? "Add reason"
-                        : "Edit"
-                  }
-                  variant="secondary"
-                  style={{ flex: 1 }}
-                  onPress={() =>
-                    setEditing({
-                      id: e.id,
-                      kind: e.kind,
-                      amount: String(e.amount),
-                      notes:
-                        e.kind === "expense" && (e as Expense).needsReason
-                          ? ""
-                          : e.notes || "",
-                      date: e.date,
-                      name: e.kind === "income" ? e.name : undefined,
-                      category: e.category,
-                    })
-                  }
-                />
-                <Button
-                  title="Delete"
-                  variant="ghost"
-                  style={{ flex: 1 }}
-                  onPress={() => remove(e.id, e.kind)}
-                />
-              </View>
-            </Card>
-          ))}
-        {!rows.length && (
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 16,
-              textAlign: "center",
-            }}
-          >
-            No transactions yet. Add an expense or income, or enable Android
-            payment tracking.
-          </Text>
-        )}
-      </ScrollView>
+      />
       <Modal
         visible={!!editing}
         animationType="slide"

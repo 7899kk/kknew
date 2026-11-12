@@ -1,4 +1,5 @@
 import React from "react";
+import { useApp } from "@/context/AppContext";
 import { Image, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -12,6 +13,7 @@ interface Props {
 
 export function ProFinancierHeader({ title, subtitle, rightSlot, compact }: Props) {
   const colors = useColors();
+  const { profile } = useApp();
   const insets = useSafeAreaInsets();
   const logoSize = compact ? 36 : 46;
 
@@ -19,7 +21,7 @@ export function ProFinancierHeader({ title, subtitle, rightSlot, compact }: Prop
     <View
       style={{
         backgroundColor: colors.primary,
-        paddingTop: insets.top + (Platform.OS === "web" ? 67 : 8),
+        paddingTop: insets.top + 8,
         paddingBottom: compact ? 12 : 16,
         paddingHorizontal: 20,
         flexDirection: "row",
@@ -78,12 +80,12 @@ export function ProFinancierHeader({ title, subtitle, rightSlot, compact }: Prop
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {title}
+              {`Hi, ${profile.name?.split(" ")[0] || "there"}`}
             </Text>
           )}
-          {subtitle && (
+          {(title || subtitle) && (
             <Text style={{ fontSize: 12, color: "#ffffffaa" }} numberOfLines={1}>
-              {subtitle}
+              {title?.startsWith("Hello") ? "Home" : title || subtitle}
             </Text>
           )}
         </View>

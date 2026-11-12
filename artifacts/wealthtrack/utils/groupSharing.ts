@@ -101,7 +101,7 @@ export function decideProposal(
     proposals: g.proposals.filter((x) => x.id !== p.id),
     handledProposalIds: [...(g.handledProposalIds || []), p.id],
   };
-  if (!accept) return next;
+  if (!accept) return { ...next, revision: (g.revision || 0) + 1 };
   if (!g.members.includes(mappedMember))
     throw Error("Choose a known group member.");
   if (p.kind === "expense" && p.expense) {

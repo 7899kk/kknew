@@ -4,6 +4,9 @@ import type { CapturedPayment } from "./paymentModels";
 export { sourceNames } from "./paymentModels";
 export type { CapturedPayment } from "./paymentModels";
 export type CaptureStatus = {
+  smsGranted?: boolean;
+  smsEnabled?: boolean;
+  smsSetupHandled?: boolean;
   granted: boolean;
   enabled: boolean;
   overflow: boolean;
@@ -17,6 +20,10 @@ export type CaptureStatus = {
 };
 interface Bridge {
   status(): Promise<CaptureStatus>;
+  requestSmsPermissions(): Promise<{granted:boolean;canAskAgain?:boolean}>;
+  setSmsEnabled(value:boolean): Promise<void>;
+  dismissSmsSetup(): Promise<void>;
+  openSmsAppSettings(): Promise<void>;
   openSettings(): Promise<void>;
   requestNotifications(): Promise<void>;
   openAppNotificationSettings(): Promise<void>;

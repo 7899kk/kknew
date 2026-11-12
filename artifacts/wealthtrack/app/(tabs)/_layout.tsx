@@ -26,7 +26,7 @@ function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="debts">
         <Icon sf={{ default: "exclamationmark.circle", selected: "exclamationmark.circle.fill" }} />
-        <Label>Debts</Label>
+        <Label>Dues</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="goals">
         <Icon sf={{ default: "target", selected: "target" }} />
@@ -128,7 +128,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="debts"
         options={{
-          title: "Debts",
+          title: "Dues",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="exclamationmark.circle" tintColor={color} size={22} />

@@ -43,7 +43,7 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
-    tabs={'Dashboard','Expenses','Activity','Debts','Goals','Split','Profile'}
+    tabs={'Dashboard','Expenses','Activity','Dues','Goals','Split','Profile'}
     nav_bounds=[]
     for candidate in root.iter('node'):
         if candidate.get('text') not in tabs:continue
@@ -132,6 +132,7 @@ if __name__ == "__main__":
         tap('Continue')
         tap('Enter WealthTrack')
         time.sleep(4)
+        contains('Track payments');tap('Not now')
         contains('1,01,000')
         save('initial-101000')
         tap('Expenses')

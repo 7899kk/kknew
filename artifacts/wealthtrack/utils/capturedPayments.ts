@@ -121,7 +121,7 @@ export function applyCapturedPayments<T extends PaymentState>(
       }
     }
     seen.add(event.id);
-    const source = sourceNames[event.source] || event.source;
+    const source = event.source.startsWith("sms:") ? "Bank SMS · " + event.source.slice(4) : sourceNames[event.source] || event.source;
     if (event.kind === "expense") {
       next = {
         ...next,
@@ -146,7 +146,7 @@ export function applyCapturedPayments<T extends PaymentState>(
             ].includes(event.source)
               ? "UPI"
               : "Bank",
-            notes: `Payment notification · ${source}`,
+            notes: `Payment · ${source}`,
             upiRef: event.reference || undefined,
             needsReason: true,
           },

@@ -45,13 +45,6 @@ export function BudgetReports() {
   return (
     <>
       <Card style={{ marginBottom: 16 }}>
-        <Text style={{ color: c.foreground, fontSize: 18, fontWeight: "700" }}>
-          Budgets and monthly reports
-        </Text>
-        <Text style={{ color: c.mutedForeground, marginVertical: 10 }}>
-          Set spending limits and compare months. Budgets guide your spending;
-          they do not change your balance.
-        </Text>
         <Button
           title="Open budgets and reports"
           onPress={() => {

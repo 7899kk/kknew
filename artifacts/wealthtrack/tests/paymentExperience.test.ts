@@ -113,3 +113,48 @@ assert.equal(
   selectNewPaymentReceipt(["debit"], captured.expenses, captured.incomes)?.kind,
   "income",
 );
+
+const sms = applyCapturedPayments(empty, [
+  {
+    id: "sms-debit",
+    kind: "expense",
+    amount: 1500,
+    source: "sms:VM-HDFCBK",
+    timestamp,
+    reference: "SMS123456",
+  },
+  {
+    id: "sms-credit",
+    kind: "income",
+    amount: 10000,
+    source: "sms:AD-SBIINB",
+    timestamp,
+  },
+  {
+    id: "sms-unknown",
+    kind: "review",
+    amount: 200,
+    source: "sms:+919876543210",
+    timestamp,
+  },
+]);
+assert.equal(sms.expenses.length, 1);
+assert.equal(sms.incomes.length, 1);
+assert.equal(sms.paymentReviews.length, 1);
+assert.equal(sms.expenses[0].paymentType, "Bank");
+assert.equal(sms.expenses[0].source, "Bank SMS · VM-HDFCBK");
+assert.equal(sms.expenses[0].time, "16:30");
+const replaySms = applyCapturedPayments(sms, [
+  {
+    id: "sms-debit",
+    kind: "expense",
+    amount: 1500,
+    source: "sms:VM-HDFCBK",
+    timestamp,
+    reference: "SMS123456",
+  },
+]);
+assert.equal(replaySms.expenses.length, 1);
+console.log(
+  "SMS ledger import checks passed: timestamp, bank source, debit/credit separation, review exclusion and replay.",
+);

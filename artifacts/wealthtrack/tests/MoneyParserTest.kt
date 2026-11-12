@@ -1,3 +1,4 @@
+import expo.modules.moneynotifications.SmsPaymentParser
 import expo.modules.moneynotifications.MoneyParser
 import expo.modules.moneynotifications.fingerprint
 fun main() {
@@ -63,5 +64,38 @@ fun main() {
   check(paymentKey==duplicate.fingerprint("bank","2",2000,"duplicate"))
   check(paymentKey!=refunded.fingerprint("bank","3",3000,"refund"))
   check(refunded.fingerprint("bank","3",3000,"refund")==refunded.fingerprint("phonepe","4",4000,"duplicate refund"))
+  val smsCases=listOf(
+    Triple("INR 1,500 debited from A/c XX1234. Avl Bal INR 40,500. Ref: ABC123456", "expense",1500.0),
+    Triple("Your a/c credited by Rs. 10,000. Available balance Rs. 90,000", "income",10000.0),
+    Triple("Available balance INR 40,500. INR 200 debited from account XX1234", "expense",200.0),
+    Triple("Rs. 1,00,000.50 credited to A/c XX1234", "income",100000.50),
+    Triple("A/c XX1234 debited with INR 250.50 on 12-Nov", "expense",250.50),
+    Triple("INR 200 spent using card XX1234. Avl bal INR 20000", "expense",200.0),
+    Triple("INR 500 withdrawn from account XX1234", "expense",500.0),
+    Triple("INR 500 credited and INR 100 debited in a/c", "review",500.0),
+    Triple("A/c XX1234 transaction INR 500", "review",500.0),
+    Triple("INR 100 refunded to account XX1234", "review",100.0),
+    Triple("Own account transfer INR 500 debited", "transfer",500.0),
+    Triple("INR 500 debited. Payment failed", "skip",0.0),
+    Triple("INR 500 debit pending in a/c", "skip",0.0),
+    Triple("INR 500 paid. Transaction timed out", "skip",0.0),
+    Triple("INR 500 credited but not processed", "skip",0.0),
+    Triple("INR 500 will be credited to account", "skip",0.0),
+    Triple("INR 500 to be debited from account", "skip",0.0),
+    Triple("OTP 123456 to pay INR 100", "skip",0.0),
+    Triple("INR 1,,000 debited", "skip",0.0),
+    Triple("INR 1.234 credited", "skip",0.0)
+  )
+  for((text,kind,amount) in smsCases){
+    val event=SmsPaymentParser.parse("VM-HDFCBK",text)
+    check((event?.kind ?: "skip")==kind){"SMS expected $kind for $text; got $event"}
+    if(event!=null) check(event.amount==amount){"SMS wrong amount: $event"}
+  }
+  check(SmsPaymentParser.parse("+919876543210","INR 200 paid for dinner")==null)
+  check(SmsPaymentParser.parse("+919876543210","INR 200 debited from account XX1234")?.kind=="review")
+  check(SmsPaymentParser.parse("AD-UNKNWN","INR 200 debited from account XX1234")?.kind=="review")
+  check(SmsPaymentParser.parse("AD-SBIINB-S","INR 200 debited from account XX1234")?.kind=="expense")
+  check(SmsPaymentParser.parse("HDFCBK","INR 200 debited from account XX1234")?.kind=="expense")
+  println("${smsCases.size + 5} bank SMS checks passed: direction, separate balances, no-reference, sender trust, malformed amounts, failed/pending/future payments and OTPs")
   println("${cases.size + 1} native parser cases and refund/dedup fingerprint regressions passed")
 }

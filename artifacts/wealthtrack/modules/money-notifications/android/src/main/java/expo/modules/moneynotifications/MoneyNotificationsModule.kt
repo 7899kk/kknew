@@ -1,4 +1,7 @@
 package expo.modules.moneynotifications
+import android.Manifest
+import expo.modules.interfaces.permissions.Permissions
+import expo.modules.kotlin.Promise
 import android.content.Intent
 import android.content.ComponentName
 import android.provider.Settings
@@ -12,7 +15,7 @@ class MoneyNotificationsModule : Module() {
     AsyncFunction("status") {
       val c=context(); val component=ComponentName(c,MoneyListener::class.java).flattenToString()
       val granted=Settings.Secure.getString(c.contentResolver,"enabled_notification_listeners")?.split(":")?.contains(component) == true
-      mapOf("granted" to granted,"enabled" to MoneyStore.enabled(c),"overflow" to MoneyStore.overflow(c),"notificationsGranted" to MoneyAlerts.allowed(c),"alertsEnabled" to MoneyStore.alertsEnabled(c)) + MoneyStore.health(c)
+      mapOf("granted" to granted,"enabled" to MoneyStore.enabled(c),"overflow" to MoneyStore.overflow(c),"notificationsGranted" to MoneyAlerts.allowed(c),"alertsEnabled" to MoneyStore.alertsEnabled(c)) + MoneyStore.health(c) + SmsCapture.status(c)
     }
     AsyncFunction("openSettings") { context().startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     AsyncFunction("requestNotifications") {
@@ -28,12 +31,19 @@ class MoneyNotificationsModule : Module() {
     AsyncFunction("testNotification") { direction:String -> val kind=if(direction=="income") "test-income" else "test-expense"; MoneyAlerts.show(context(),org.json.JSONObject().put("id",kind).put("kind",kind).put("amount",0)) }
     AsyncFunction("setEnabled") { value: Boolean ->
       val c=context()
+      if(value) SmsCapture.setEnabled(c,false)
       MoneyStore.setEnabled(c,value)
       if(value) android.service.notification.NotificationListenerService.requestRebind(ComponentName(c,MoneyListener::class.java))
     }
-    AsyncFunction("pending") { MoneyStore.pending(context()).toString() }
+    AsyncFunction("requestSmsPermissions") { promise:Promise ->
+      Permissions.askForPermissionsWithPermissionsManager(appContext.permissions,promise,Manifest.permission.READ_SMS,Manifest.permission.RECEIVE_SMS)
+    }
+    AsyncFunction("setSmsEnabled") { value:Boolean -> SmsCapture.setEnabled(context(),value) }
+    AsyncFunction("dismissSmsSetup") { SmsCapture.setupHandled(context()) }
+    AsyncFunction("openSmsAppSettings") { context().startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+context().packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    AsyncFunction("pending") { SmsCapture.recover(context()); MoneyStore.pending(context()).toString() }
     AsyncFunction("acknowledge") { ids: List<String> -> MoneyStore.acknowledge(context(),ids) }
     AsyncFunction("markImported") { MoneyStore.imported(context()) }
-    AsyncFunction("clear") { MoneyStore.clear(context()) }
+    AsyncFunction("clear") { SmsCapture.clear(context()); MoneyStore.clear(context()) }
   }
 }
