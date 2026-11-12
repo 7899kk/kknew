@@ -71,24 +71,30 @@ export function applyCapturedPayments<T extends PaymentState>(
       const incomes = next.incomes.filter(
         (e) => e.captureId && e.reference === event.reference,
       );
-      // A matching automatic repeat must not undo a direction explicitly corrected by the user.
-      if (
-        [...expenses, ...incomes].some(
+      const correctedMatch = [...expenses, ...incomes].some(
+        (e) => e.directionCorrected && e.amount === event.amount,
+      );
+      const explicitlyConfirmedOpposite =
+        event.id === confirmedReviewId &&
+        (event.kind === "income" ? expenses : incomes).some(
           (e) => e.directionCorrected && e.amount === event.amount,
-        )
-      ) {
+        );
+      // Preserve explicit corrections against automatic conflicts; a user can still
+      // confirm a separate opposite-direction event such as a genuine refund.
+      if (correctedMatch && event.conflict && !explicitlyConfirmedOpposite) {
         seen.add(event.id);
         next = { ...next };
         continue;
       }
       const conflict =
-        event.conflict ||
-        expenses.some(
-          (e) => event.kind !== "expense" || e.amount !== event.amount,
-        ) ||
-        incomes.some(
-          (e) => event.kind !== "income" || e.amount !== event.amount,
-        );
+        !explicitlyConfirmedOpposite &&
+        (event.conflict ||
+          expenses.some(
+            (e) => event.kind !== "expense" || e.amount !== event.amount,
+          ) ||
+          incomes.some(
+            (e) => event.kind !== "income" || e.amount !== event.amount,
+          ));
       if (conflict) {
         const existingReviews = [
           ...expenses.map((e) => ({
@@ -125,7 +131,10 @@ export function applyCapturedPayments<T extends PaymentState>(
         };
         event.kind = "review";
         event.conflict = true;
-      } else if (expenses.length || incomes.length) {
+      } else if (
+        (expenses.length || incomes.length) &&
+        !explicitlyConfirmedOpposite
+      ) {
         seen.add(event.id);
         next = { ...next };
         continue;

@@ -109,3 +109,20 @@ const replay = applyCapturedPayments(withCorrections, [
 assert.equal(replay.expenses.length, 1);
 assert.equal(replay.incomes.length, 0);
 assert.equal(replay.paymentReviews.length, 0);
+// A correction must not swallow a separate refund explicitly confirmed by the user.
+const { resolveCapturedPayment } = await import("../utils/capturedPayments");
+const pendingRefund = applyCapturedPayments(withCorrections, [
+  {
+    id: "refund",
+    kind: "review",
+    amount: 321.45,
+    source: "sms:VM-HDFCBK",
+    timestamp: new Date(2026, 10, 12, 13).getTime(),
+    reference: "REF1000001",
+  },
+]);
+const refunded = resolveCapturedPayment(pendingRefund, "refund", "income");
+assert.equal(refunded.expenses.length, 1);
+assert.equal(refunded.incomes.length, 1);
+assert.equal(refunded.paymentReviews.length, 0);
+assert.equal(financeSummary(refunded, "2026-11").balance, 1000);
