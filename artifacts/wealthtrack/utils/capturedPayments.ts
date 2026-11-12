@@ -71,6 +71,16 @@ export function applyCapturedPayments<T extends PaymentState>(
       const incomes = next.incomes.filter(
         (e) => e.captureId && e.reference === event.reference,
       );
+      // A matching automatic repeat must not undo a direction explicitly corrected by the user.
+      if (
+        [...expenses, ...incomes].some(
+          (e) => e.directionCorrected && e.amount === event.amount,
+        )
+      ) {
+        seen.add(event.id);
+        next = { ...next };
+        continue;
+      }
       const conflict =
         event.conflict ||
         expenses.some(

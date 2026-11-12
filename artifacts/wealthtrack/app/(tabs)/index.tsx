@@ -1,667 +1,739 @@
-import { recordedCashFlow } from "@/utils/dashboardData";
+import { DashboardDetails } from "@/components/DashboardDetails";
+import type { DashboardDetail } from "@/components/DashboardDetails";
+import { loanSummary } from "@/utils/loans";
 import { GoalImage } from "@/components/GoalImage";
-import { AnimatedMoney } from "@/components/AnimatedMoney";
-import { Image } from "react-native";
-import { paymentReminders, remindersDue } from "@/utils/paymentReminders";
-import React, { useState } from "react";
+import { LatestPayment } from "@/components/LatestPayment";
+import { SpendingInsight } from "@/components/SpendingInsight";
+import { BudgetReports } from "@/components/BudgetReports";
+import { localDate } from "@/utils/financeValidation";
+import { nextMonthSavingsPlan } from "@/utils/financeSummary";
+import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
+  Platform,
   Pressable,
   ScrollView,
   Text,
-  View,
   useWindowDimensions,
+  View,
 } from "react-native";
-import { router, type Href } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import {
   Card,
+  EmptyState,
+  formatCurrency,
   formatCurrencyFull,
-  PillSelector,
   ProgressBar,
+  SectionHeader,
+  StatCard,
 } from "@/components/UI";
-import {
-  DashboardDetails,
-  type DashboardDetail,
-} from "@/components/DashboardDetails";
-import { BalanceChart } from "@/components/ReferenceCharts";
 import { PieChart } from "@/components/PieChart";
-import { monthlyBalancePoints, categoryTotals } from "@/utils/dashboardData";
-import { localDate } from "@/utils/financeValidation";
-import { nextMonthSavingsPlan } from "@/utils/financeSummary";
-import { loanSummary } from "@/utils/loans";
-import { spendingComparison } from "@/utils/reports";
-export default function DashboardScreen() {
-  const app = useApp(),
-    c = useColors(),
-    insets = useSafeAreaInsets(),
-    { width } = useWindowDimensions();
-  const [detail, setDetail] = useState<DashboardDetail | null>(null),
-    [period, setPeriod] = useState("Month");
-  const month = localDate().slice(0, 7),
-    forecast = nextMonthSavingsPlan(app),
-    comparison = spendingComparison(month, app.expenses);
-  const categories = categoryTotals(app.expenses, month),
-    palette = [
-      c.gold,
-      c.chart3,
-      c.chart2,
-      c.chart4,
-      c.chart5,
-      c.chart6,
-      c.chart7,
-      c.chart8,
-    ];
-  const allPoints = monthlyBalancePoints(
-    app.profile,
-    app.incomes,
-    app.expenses,
-    month,
-  );
-  const day = new Date().getDate();
-  const today = new Date();
-  let yearlyFlow = 0;
-  const yearPoints = Array.from({ length: 12 }, (_, i) => {
-    const key = localDate(
-      new Date(today.getFullYear(), today.getMonth() - 11 + i, 1),
-    ).slice(0, 7);
-    yearlyFlow +=
-      app.incomes
-        .filter((e) => e.date.startsWith(key))
-        .reduce((s, e) => s + Math.round(e.amount * 100), 0) -
-      app.expenses
-        .filter((e) => e.date.startsWith(key))
-        .reduce((s, e) => s + Math.round(e.amount * 100), 0);
-    return yearlyFlow / 100;
-  });
-  const points =
-    period === "Year"
-      ? yearPoints
-      : period === "Week"
-        ? allPoints.slice(Math.max(0, day - 6), day + 1)
-        : allPoints;
-  const monthName = new Date(month + "-01T12:00:00").toLocaleDateString(
-    "en-IN",
-    { month: "long", year: "numeric" },
-  );
-  const topGoal =
-    app.goals.find((g) => g.savedAmount < g.targetAmount) || app.goals[0];
-  const cash = recordedCashFlow(app, month);
-  const dueSoon = remindersDue(paymentReminders(app));
-  const upcoming = app.loans
-    .filter((l) => l.kind === "borrowed")
-    .map((l) => ({ loan: l, ...loanSummary(l) }))
-    .filter((l) => l.remaining > 0)
-    .sort((a, b) => (a.next?.date || "").localeCompare(b.next?.date || ""));
-  const metric = (
-    title: string,
-    value: number,
-    kind: DashboardDetail,
-    color: string,
-  ) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${kind.toLowerCase()} details`}
-      onPress={() => setDetail(kind)}
-      style={{ flex: 1 }}
-    >
-      <Card style={{ gap: 9, padding: 16 }}>
-        <Text style={{ color: c.mutedForeground, fontSize: 12 }}>{title}</Text>
-        <AnimatedMoney
-          value={value}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={{
-            color,
-            fontSize: 22,
-            fontFamily: "Inter_700Bold",
-          }}
-        ></AnimatedMoney>
-        <View
-          style={{ height: 3, borderRadius: 2, backgroundColor: color + "35" }}
-        >
-          <View
-            style={{
-              height: 3,
-              width: "65%",
-              backgroundColor: color,
-              borderRadius: 2,
-            }}
-          />
-        </View>
-      </Card>
-    </Pressable>
-  );
+import { ProFinancierHeader } from "@/components/ProFinancierHeader";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: "#f59e0b",
+  Travel: "#3b82f6",
+  Rent: "#8b5cf6",
+  EMI: "#ef4444",
+  Shopping: "#ec4899",
+  Entertainment: "#06b6d4",
+  Medical: "#10b981",
+  Education: "#f97316",
+  Others: "#6b7280",
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  Food: "coffee",
+  Travel: "navigation",
+  Rent: "home",
+  EMI: "calendar",
+  Shopping: "shopping-bag",
+  Entertainment: "film",
+  Medical: "heart",
+  Education: "book",
+  Others: "more-horizontal",
+};
+
+/** Animated counter that counts up from 0 to value */
+function AnimatedCounter({ value, style }: { value: number; style?: object }) {
+  const animVal = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = React.useState(0);
+
+  useEffect(() => {
+    const listener = animVal.addListener(({ value: v }) => setDisplay(v));
+    Animated.timing(animVal, {
+      toValue: value,
+      duration: 1200,
+      useNativeDriver: false,
+    }).start();
+    return () => animVal.removeListener(listener);
+  }, [value]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
-      <ProFinancierHeader title="Home" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          padding: 18,
-          paddingBottom: insets.bottom + 105,
-          gap: 13,
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open balance details"
-          onPress={() => setDetail("Balance")}
-          style={{ paddingHorizontal: 3, paddingTop: 6 }}
-        >
-          <Text
+    <Text style={style} adjustsFontSizeToFit numberOfLines={1}>
+      {formatCurrencyFull(display)}
+    </Text>
+  );
+}
+
+export default function DashboardScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  const app = useApp();
+  const [detail, setDetail] = useState<DashboardDetail | null>(null);
+  const forecast = nextMonthSavingsPlan(app);
+
+  // Staggered entrance animations
+  const heroAnim = useRef(new Animated.Value(0)).current;
+  const statsAnim = useRef(new Animated.Value(0)).current;
+  const chartAnim = useRef(new Animated.Value(0)).current;
+  const listAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(120, [
+      Animated.spring(heroAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 8,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.spring(statsAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 8,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.spring(chartAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 8,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.spring(listAnim, {
+        toValue: 1,
+        tension: 55,
+        friction: 8,
+        useNativeDriver: Platform.OS !== "web",
+      }),
+    ]).start();
+  }, []);
+
+  const recentExpenses = useMemo(
+    () =>
+      [...app.expenses]
+        .sort((a, b) =>
+          `${b.date}${b.time || ""}`.localeCompare(`${a.date}${a.time || ""}`),
+        )
+        .slice(0, 4),
+    [app.expenses],
+  );
+
+  const topGoal = app.goals[0];
+
+  const financePieSlices = useMemo(() => {
+    const slices = [];
+    if (app.totalIncome > 0)
+      slices.push({
+        value: app.totalIncome,
+        color: colors.success,
+        label: "Income",
+      });
+    if (app.totalExpenses > 0)
+      slices.push({
+        value: app.totalExpenses,
+        color: colors.expense,
+        label: "Expenses",
+      });
+
+    if (app.totalDebt > 0)
+      slices.push({ value: app.totalDebt, color: colors.debt, label: "Debt" });
+    return slices;
+  }, [app]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ProFinancierHeader
+        title={`Hello, ${app.profile.name || "there"} 👋`}
+        rightSlot={
+          <Pressable
+            onPress={() => router.push("/(tabs)/profile")}
             style={{
-              fontSize: 10,
-              letterSpacing: 1.3,
-              color: c.mutedForeground,
+              backgroundColor: "#ffffff20",
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            MONTHLY BALANCE
-          </Text>
+            <Feather name="user" size={18} color={colors.primaryForeground} />
+          </Pressable>
+        }
+      />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 80 + (Platform.OS === "web" ? 34 : 0),
+          paddingTop: 12,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── 3D Net Worth Hero Card ── */}
+        <Animated.View
+          style={{
+            opacity: heroAnim,
+            transform: [
+              {
+                translateY: heroAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [30, 0],
+                }),
+              },
+              {
+                scale: heroAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1],
+                }),
+              },
+            ],
+            marginHorizontal: 16,
+            marginBottom: 16,
+          }}
+        >
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 10,
+              borderRadius: 24,
+              overflow: "hidden",
+              backgroundColor: colors.primary,
+              shadowColor: colors.primary,
+              shadowOpacity: 0.45,
+              shadowRadius: 24,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 14,
             }}
           >
-            <AnimatedMoney
-              value={app.balance}
-              fromZero
-              numberOfLines={1}
-              adjustsFontSizeToFit
+            {/* Decorative 3D depth layers */}
+            <View
               style={{
-                fontSize: 38,
-                fontFamily: "Inter_700Bold",
-                color: c.foreground,
-                flexShrink: 1,
+                position: "absolute",
+                top: -30,
+                right: -30,
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                backgroundColor: "#ffffff12",
               }}
-            ></AnimatedMoney>
-            {comparison.hasPrevious && comparison.percent !== null && (
+            />
+            <View
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 20,
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                backgroundColor: "#ffffff08",
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                bottom: -20,
+                left: -20,
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                backgroundColor: "#00000010",
+              }}
+            />
+            {/* Shiny top stripe */}
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 2,
+                backgroundColor: "#ffffff25",
+              }}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open balance details"
+              onPress={() => setDetail("Balance")}
+              style={{ padding: 22, paddingBottom: 12 }}
+            >
               <View
                 style={{
-                  backgroundColor:
-                    comparison.difference <= 0
-                      ? c.incomeLight
-                      : c.expense + "15",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 6,
                 }}
               >
+                <Feather name="trending-up" size={14} color="#ffffff80" />
                 <Text
                   style={{
-                    fontSize: 10,
-                    color: comparison.difference <= 0 ? c.income : c.expense,
+                    color: "#ffffff80",
+                    fontSize: 12,
+                    fontWeight: "600",
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
                   }}
                 >
-                  {comparison.percent}%{" "}
-                  {comparison.difference <= 0 ? "less" : "more"} spent
+                  This month’s balance
                 </Text>
               </View>
-            )}
-          </View>
-          <Text
-            style={{ color: c.mutedForeground, fontSize: 11, marginTop: 9 }}
-          >
-            {monthName}
-          </Text>
-        </Pressable>
-        <View style={{ alignItems: "center", marginTop: 3 }}>
-          <BalanceChart data={points} width={Math.max(200, width - 40)} />
-        </View>
-        {period === "Year" && (
-          <Text
-            style={{
-              textAlign: "center",
-              fontSize: 10,
-              color: c.mutedForeground,
-            }}
-          >
-            Recorded cash flow · last 12 months
-          </Text>
-        )}
-        <PillSelector
-          options={["Week", "Month", "Year"]}
-          value={period}
-          onChange={setPeriod}
-        />
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          {metric("Income", app.totalIncome, "Income", c.income)}
-          {metric("Expenses", app.totalExpenses, "Expenses", c.expense)}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open available balance details"
-          onPress={() => setDetail("Available to spend")}
-        >
-          <Card
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
-              Available to spend
-            </Text>
-            <Text
+              <AnimatedCounter
+                value={app.balance}
+                style={{
+                  color: colors.primaryForeground,
+                  fontSize: Math.min(screenW * 0.085, 36),
+                  fontWeight: "700",
+                  fontFamily: "Inter_700Bold",
+                }}
+              />
+            </Pressable>
+
+            <View
               style={{
-                fontSize: 20,
-                fontFamily: "Inter_700Bold",
-                color: c.foreground,
+                flexDirection: "row",
+                backgroundColor: "#00000015",
+                paddingVertical: 14,
+                paddingHorizontal: 16,
               }}
             >
-              {formatCurrencyFull(app.availableBalance)}
-            </Text>
-          </Card>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open finance overview details"
-          onPress={() => setDetail("Expenses")}
-        >
-          <Card>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-            >
-              <View style={{ width: 125 }}>
-                <PieChart
-                  showLegend={false}
-                  size={125}
-                  thickness={15}
-                  slices={categories.map((cat, i) => ({
-                    value: cat.amount,
-                    label: cat.name,
-                    color: palette[i % palette.length],
-                  }))}
-                  centerLabel="Spent"
-                  centerValue={app.totalExpenses}
-                />
+              {[
+                {
+                  label: "Income",
+                  val: app.totalIncome,
+                  icon: "arrow-down-circle",
+                },
+                {
+                  label: "Expenses",
+                  val: app.totalExpenses,
+                  icon: "arrow-up-circle",
+                },
+                { label: "Savings", val: app.totalSavings, icon: "pocket" },
+              ].map((item) => (
+                <Pressable
+                  key={item.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.label.toLowerCase()} details`}
+                  onPress={() => setDetail(item.label as DashboardDetail)}
+                  hitSlop={8}
+                  style={{ flex: 1, alignItems: "center" }}
+                >
+                  <Feather
+                    name={item.icon as any}
+                    size={13}
+                    color="#ffffff70"
+                  />
+                  <Text
+                    style={{
+                      color: "#ffffff60",
+                      fontSize: 10,
+                      marginTop: 2,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.primaryForeground,
+                      fontSize: 13,
+                      fontWeight: "700",
+                    }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {formatCurrency(item.val)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </Animated.View>
+
+        <View style={{ paddingHorizontal: 16 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open monthly loan payments"
+            onPress={() => router.push("/(tabs)/loans")}
+          >
+            <Card style={{ marginBottom: 16 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <View>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                    Loan payments this month
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.debt,
+                      fontFamily: "Inter_700Bold",
+                      fontSize: 23,
+                      marginTop: 6,
+                    }}
+                  >
+                    {formatCurrencyFull(app.monthlyLoanPayments)}
+                  </Text>
+                </View>
+                <Feather name="calendar" size={24} color={colors.primary} />
               </View>
-              <View style={{ flex: 1, gap: 11 }}>
-                {categories.length ? (
-                  categories.slice(0, 5).map((cat, i) => (
-                    <View
-                      key={cat.name}
+              {app.loans
+                .map((l) => ({ loan: l, summary: loanSummary(l) }))
+                .filter((l) => l.summary.remaining > 0)
+                .sort((a, b) =>
+                  (a.summary.next?.date || "").localeCompare(
+                    b.summary.next?.date || "",
+                  ),
+                )
+                .slice(0, 3)
+                .map(({ loan, summary }) => (
+                  <View key={loan.id} style={{ marginTop: 12 }}>
+                    <Text
                       style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 6,
+                        color: colors.foreground,
+                        fontFamily: "Inter_600SemiBold",
                       }}
                     >
-                      <View
-                        style={{
-                          height: 6,
-                          width: 6,
-                          borderRadius: 3,
-                          backgroundColor: palette[i],
-                        }}
-                      />
+                      {loan.name} · {formatCurrencyFull(summary.remaining)}
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: 12,
+                        marginTop: 3,
+                      }}
+                    >
+                      {loan.kind === "borrowed" ? "You repay" : "Owed to you"} ·
+                      Due {summary.next?.date} ·{" "}
+                      {formatCurrencyFull(loan.monthlyPayment)}/month
+                    </Text>
+                  </View>
+                ))}
+            </Card>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open available balance details"
+            onPress={() => setDetail("Available to spend")}
+          >
+            <Card style={{ marginBottom: 16 }}>
+              <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+                Available to spend: {formatCurrencyFull(app.availableBalance)}
+              </Text>
+            </Card>
+          </Pressable>
+          <LatestPayment />
+          <SpendingInsight />
+          <BudgetReports />
+          {/* ── Quick Stats ── */}
+          <Animated.View
+            style={{
+              opacity: statsAnim,
+              transform: [
+                {
+                  translateY: statsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Review captured payments"
+                onPress={() => router.push("/(tabs)/activity")}
+                style={{ flex: 1 }}
+              >
+                <StatCard
+                  label="Review payments"
+                  amount={app.paymentReviews.reduce(
+                    (sum, e) => sum + e.amount,
+                    0,
+                  )}
+                  color={colors.primary}
+                  icon="activity"
+                />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open debts & credits details"
+                onPress={() => setDetail("Debts & credits")}
+                style={{ flex: 1 }}
+              >
+                <StatCard
+                  label="Debts & credits"
+                  amount={app.totalDebt}
+                  color={colors.debt}
+                  icon="alert-circle"
+                />
+              </Pressable>
+            </View>
+          </Animated.View>
+
+          {/* ── Finance Overview Pie Chart ── */}
+          {financePieSlices.length > 0 && (
+            <Animated.View
+              style={{
+                opacity: chartAnim,
+                transform: [
+                  {
+                    translateY: chartAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <SectionHeader title="Finance Overview" />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open finance overview details"
+                onPress={() => setDetail("Balance")}
+              >
+                <Card style={{ marginBottom: 20 }}>
+                  <PieChart
+                    slices={financePieSlices}
+                    thickness={38}
+                    centerLabel="Balance"
+                    centerValue={app.balance}
+                  />
+                </Card>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* ── Top Goal ── */}
+          {topGoal && (
+            <Animated.View style={{ opacity: listAnim }}>
+              <SectionHeader
+                title="Top Goal"
+                action="All Goals"
+                onAction={() => router.push("/(tabs)/goals")}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open goal savings details"
+                onPress={() => setDetail("Savings")}
+              >
+                <Card style={{ marginBottom: 20 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <View style={{ gap: 2, flex: 1 }}>
                       <Text
-                        numberOfLines={1}
                         style={{
-                          flex: 1,
-                          fontSize: 11,
-                          color: c.mutedForeground,
+                          fontSize: 16,
+                          fontWeight: "700",
+                          color: colors.foreground,
+                          fontFamily: "Inter_700Bold",
                         }}
                       >
-                        {cat.name}
+                        {topGoal.emoji} {topGoal.name}
                       </Text>
-                      <Text style={{ fontSize: 11, color: c.foreground }}>
-                        {app.totalExpenses
-                          ? Math.round((cat.amount / app.totalExpenses) * 100)
+                      <Text
+                        style={{ color: colors.mutedForeground, fontSize: 13 }}
+                      >
+                        {formatCurrency(topGoal.savedAmount)} of{" "}
+                        {formatCurrency(topGoal.targetAmount)}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: colors.primary + "18",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "700",
+                          color: colors.primary,
+                        }}
+                      >
+                        {topGoal.targetAmount > 0
+                          ? Math.round(
+                              (topGoal.savedAmount / topGoal.targetAmount) *
+                                100,
+                            )
                           : 0}
                         %
                       </Text>
                     </View>
-                  ))
-                ) : (
-                  <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                    No spending recorded
-                  </Text>
-                )}
-              </View>
-            </View>
-          </Card>
-        </Pressable>
-        <View style={{ flexDirection: "row", gap: 9 }}>
-          {[
-            { title: "Dues", icon: "repeat" as const, route: "debts" },
-            { title: "Goals", icon: "target" as const, route: "goals" },
-            { title: "Split", icon: "users" as const, route: "billsplit" },
-          ].map((link) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={link.title}
-              key={link.title}
-              onPress={() => router.push(`/(tabs)/${link.route}` as Href)}
-              style={{ flex: 1 }}
-            >
-              <Card style={{ padding: 13, alignItems: "center", gap: 7 }}>
-                <Feather name={link.icon} size={18} color={c.foreground} />
-                <Text style={{ color: c.foreground, fontSize: 11 }}>
-                  {link.title}
-                </Text>
-              </Card>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open debts & credits details"
-          onPress={() => setDetail("Debts & credits")}
-        >
-          <Card style={{ flexDirection: "row", gap: 15 }}>
-            <View style={{ flex: 1, gap: 5 }}>
-              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
-                You owe
-              </Text>
-              <Text
-                style={{
-                  color: c.expense,
-                  fontFamily: "Inter_700Bold",
-                  fontSize: 20,
-                }}
-              >
-                {formatCurrencyFull(app.totalDebt)}
-              </Text>
-            </View>
-            <View style={{ flex: 1, gap: 5 }}>
-              <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
-                Owed to you
-              </Text>
-              <Text
-                style={{
-                  color: c.income,
-                  fontFamily: "Inter_700Bold",
-                  fontSize: 20,
-                }}
-              >
-                {formatCurrencyFull(app.totalCredit)}
-              </Text>
-            </View>
-          </Card>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open monthly loan payments"
-          onPress={() => router.push("/(tabs)/loans" as Href)}
-        >
-          <Card>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-            >
-              <View
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 12,
-                  backgroundColor: c.goldLight,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Feather name="credit-card" size={18} color={c.foreground} />
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
-                  Loan payments due
-                </Text>
-                <Text
-                  style={{
-                    color: c.foreground,
-                    fontFamily: "Inter_700Bold",
-                    fontSize: 22,
-                  }}
-                >
-                  {formatCurrencyFull(app.monthlyLoanPayments)}
-                </Text>
-              </View>
-              <Feather
-                name="chevron-right"
-                size={17}
-                color={c.mutedForeground}
-              />
-            </View>
-            {upcoming.slice(0, 3).map((item) => (
-              <View
-                key={item.loan.id}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  marginTop: 12,
-                }}
-              >
-                <Text style={{ color: c.foreground, fontSize: 12, flex: 1 }}>
-                  {item.loan.name}
-                </Text>
-                <Text
-                  style={{
-                    color: item.overdue > 0 ? c.destructive : c.mutedForeground,
-                    fontSize: 11,
-                  }}
-                >
-                  {item.next?.date} ·{" "}
-                  {formatCurrencyFull(item.next?.remaining || 0)}
-                </Text>
-              </View>
-            ))}
-          </Card>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open savings details"
-          onPress={() => setDetail("Savings")}
-        >
-          <Card>
-            <View
-              style={{ flexDirection: "row", gap: 13, alignItems: "center" }}
-            >
-              <View
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 23,
-                  borderWidth: 4,
-                  borderColor: c.successLight,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Feather name="target" size={20} color={c.success} />
-              </View>
-              <View style={{ flex: 1, gap: 5 }}>
-                <Text
-                  style={{
-                    fontFamily: "Inter_600SemiBold",
-                    color: c.foreground,
-                  }}
-                >
-                  {topGoal
-                    ? `${topGoal.emoji || "◎"} ${topGoal.name}`
-                    : "Goal savings"}
-                </Text>
-                <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                  {topGoal
-                    ? `${formatCurrencyFull(topGoal.savedAmount)} / ${formatCurrencyFull(topGoal.targetAmount)}`
-                    : formatCurrencyFull(app.goalSavings)}
-                </Text>
-              </View>
-              <Feather name="plus" size={18} color={c.foreground} />
-            </View>
-            {topGoal?.imageUri && (
-              <View style={{ marginVertical: 10 }}>
-                <GoalImage uri={topGoal.imageUri} emoji={topGoal.emoji} />
-              </View>
-            )}
-            {topGoal && (
-              <View style={{ marginTop: 13, gap: 8 }}>
-                <ProgressBar
-                  progress={topGoal.savedAmount / topGoal.targetAmount}
-                  color={c.gold}
-                  height={4}
-                />
-                <Text style={{ fontSize: 11, color: c.mutedForeground }}>
-                  {forecast.targetMonth}: save{" "}
-                  {formatCurrencyFull(forecast.suggestions[topGoal.id] || 0)}
-                  {forecast.estimated ? " · estimate" : ""}
-                </Text>
-              </View>
-            )}
-          </Card>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push("/(tabs)/insights" as Href)}
-        >
-          <Text
-            style={{
-              textAlign: "center",
-              color: c.mutedForeground,
-              fontSize: 12,
-              padding: 8,
-            }}
-          >
-            View insights →
-          </Text>
-        </Pressable>
-        <Card>
-          <Text style={{ color: c.foreground, fontFamily: "Inter_700Bold" }}>
-            Recorded cash flow
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: 12,
-            }}
-          >
-            <Text style={{ color: c.income }}>Income</Text>
-            <Text style={{ color: c.income }}>
-              {formatCurrencyFull(cash.earned)}
-            </Text>
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: 10,
-            }}
-          >
-            <Text style={{ color: c.expense }}>Spent</Text>
-            <Text style={{ color: c.expense }}>
-              {formatCurrencyFull(app.totalExpenses)}
-            </Text>
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: 10,
-            }}
-          >
-            <Text style={{ color: c.foreground }}>Net recorded</Text>
-            <AnimatedMoney
-              value={cash.net}
-              style={{
-                color: cash.net >= 0 ? c.income : c.expense,
-                fontFamily: "Inter_700Bold",
-              }}
-            />
-          </View>
-        </Card>
-        {dueSoon.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open upcoming payments"
-            onPress={() => router.push("/(tabs)/others" as Href)}
-          >
-            <Card>
-              <Text style={{ color: c.expense, fontFamily: "Inter_700Bold" }}>
-                Due within 7 days or overdue · {dueSoon.length}
-              </Text>
-              {dueSoon.slice(0, 3).map((item) => (
-                <Text
-                  key={item.id}
-                  style={{ color: c.foreground, marginTop: 9 }}
-                >
-                  {item.title} · {formatCurrencyFull(item.amount)} ·{" "}
-                  {item.dueDate}
-                </Text>
-              ))}
-            </Card>
-          </Pressable>
-        )}
-        {app.expenses.length + app.incomes.length > 0 && (
-          <Card>
-            <Text
-              style={{
-                color: c.foreground,
-                fontFamily: "Inter_700Bold",
-                marginBottom: 10,
-              }}
-            >
-              Latest activity
-            </Text>
-            {[
-              ...app.expenses.map((e) => ({ ...e, direction: "debit" })),
-              ...app.incomes.map((e) => ({ ...e, direction: "credit" })),
-            ]
-              .sort(
-                (a, b) =>
-                  b.date.localeCompare(a.date) ||
-                  (b.timestamp || 0) - (a.timestamp || 0),
-              )
-              .slice(0, 5)
-              .map((e) => (
-                <Pressable
-                  key={e.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={"View activity " + e.id}
-                  onPress={() => router.push("/(tabs)/activity" as Href)}
-                  style={{
-                    paddingVertical: 10,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: c.foreground }}>
-                      {("name" in e && e.name) ||
-                        e.notes ||
-                        e.category ||
-                        "Payment"}
-                    </Text>
-                    <Text
-                      style={{
-                        color: c.mutedForeground,
-                        fontSize: 11,
-                        marginTop: 4,
-                      }}
-                    >
-                      {e.category} · {e.date}
-                    </Text>
                   </View>
-                  <Text
+                  <Text style={{ color: colors.primary, marginBottom: 10 }}>
+                    {forecast.targetMonth}: save{" "}
+                    {formatCurrencyFull(forecast.suggestions[topGoal.id] || 0)}
+                    {forecast.estimated ? " · estimate" : ""}
+                  </Text>
+                  <ProgressBar
+                    progress={
+                      topGoal.targetAmount > 0
+                        ? topGoal.savedAmount / topGoal.targetAmount
+                        : 0
+                    }
+                    color={colors.primary}
+                    height={10}
+                  />
+                </Card>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* ── Recent Expenses ── */}
+          {recentExpenses.length > 0 && (
+            <Animated.View
+              style={{
+                opacity: listAnim,
+                transform: [
+                  {
+                    translateY: listAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <SectionHeader
+                title="Recent Expenses"
+                action="See All"
+                onAction={() => router.push("/(tabs)/expenses")}
+              />
+              <Card style={{ marginBottom: 20, padding: 0 }}>
+                {recentExpenses.map((exp, i) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`View expense ${exp.merchant || exp.category}`}
+                    onPress={() => setDetail("Expenses")}
+                    key={exp.id}
                     style={{
-                      color: e.direction === "credit" ? c.income : c.expense,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 14,
+                      gap: 12,
+                      borderBottomWidth: i < recentExpenses.length - 1 ? 1 : 0,
+                      borderBottomColor: colors.border,
                     }}
                   >
-                    {e.direction === "credit" ? "+" : "−"}
-                    {formatCurrencyFull(e.amount)}
-                  </Text>
-                </Pressable>
-              ))}
-          </Card>
-        )}
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        backgroundColor:
+                          (CATEGORY_COLORS[exp.category] || colors.primary) +
+                          "20",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Feather
+                        name={
+                          (CATEGORY_ICONS[exp.category] ||
+                            "shopping-bag") as any
+                        }
+                        size={16}
+                        color={CATEGORY_COLORS[exp.category] || colors.primary}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "600",
+                          color: colors.foreground,
+                        }}
+                      >
+                        {exp.merchant || exp.category}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          gap: 6,
+                          alignItems: "center",
+                          marginTop: 2,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: colors.mutedForeground,
+                          }}
+                        >
+                          {exp.date}
+                        </Text>
+                        {exp.time ? (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: colors.mutedForeground,
+                            }}
+                          >
+                            · {exp.time}
+                          </Text>
+                        ) : null}
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: colors.mutedForeground,
+                          }}
+                        >
+                          · {exp.paymentType}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "700",
+                        color: colors.expense,
+                      }}
+                    >
+                      -{formatCurrency(exp.amount)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Card>
+            </Animated.View>
+          )}
+
+          {app.expenses.length === 0 && app.goals.length === 0 && (
+            <EmptyState
+              icon="activity"
+              title="Your dashboard is empty"
+              subtitle="Add an expense or goal"
+            />
+          )}
+        </View>
       </ScrollView>
       <DashboardDetails
         detail={detail}

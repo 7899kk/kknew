@@ -28,15 +28,15 @@ export function Card({
       style={[
         {
           backgroundColor: colors.card,
-          borderRadius: 20,
+          borderRadius: 16,
           padding,
-          borderWidth: 0,
+          borderWidth: 1,
           borderColor: colors.border,
           shadowColor: "#000",
           shadowOpacity: 0.04,
           shadowRadius: 8,
           shadowOffset: { width: 0, height: 2 },
-          elevation: 0,
+          elevation: 2,
         },
         style,
       ]}
@@ -93,7 +93,7 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
-          borderRadius: 26,
+          borderRadius: 12,
           paddingVertical: 14,
           paddingHorizontal: 20,
           alignItems: "center",
@@ -482,7 +482,7 @@ export function PillSelector<T extends string>({
         flexWrap: "wrap",
         gap: 4,
         backgroundColor: colors.card,
-        borderRadius: 26,
+        borderRadius: 12,
         padding: 4,
       }}
     >

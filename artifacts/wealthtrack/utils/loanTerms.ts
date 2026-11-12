@@ -73,3 +73,38 @@ export function loanTermsPlan(
     finalPayment: installments.at(-1)?.amount || 0,
   };
 }
+
+/** Infer a monthly term when a lender EMI is known but duration was not entered. */
+export function loanMonthsForPayment(
+  amount: number,
+  annualRate: number,
+  monthly: number,
+) {
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    amount > 1e12 ||
+    Number(amount.toFixed(2)) !== amount ||
+    !Number.isFinite(annualRate) ||
+    annualRate < 0 ||
+    annualRate > 100 ||
+    !Number.isFinite(monthly) ||
+    monthly <= 0 ||
+    monthly > 1e12 ||
+    Number(monthly.toFixed(2)) !== monthly
+  )
+    throw Error(
+      "Enter a positive loan amount, a monthly payment and annual interest from 0 to 100%.",
+    );
+  let balance = Math.round(amount * 100);
+  const payment = Math.round(monthly * 100),
+    rate = annualRate / 1200;
+  for (let month = 1; month <= 1200; month++) {
+    const interest = Math.round(balance * rate);
+    if (payment <= interest)
+      throw Error("Monthly payment must be more than the monthly interest.");
+    balance -= Math.min(balance, payment - interest);
+    if (balance === 0) return month;
+  }
+  throw Error("Enter a larger monthly payment; this plan exceeds 1200 months.");
+}

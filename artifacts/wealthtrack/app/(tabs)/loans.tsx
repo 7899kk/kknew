@@ -1,7 +1,7 @@
-import { loanTermsPlan } from "@/utils/loanTerms";
+import { loanMonthsForPayment, loanTermsPlan } from "@/utils/loanTerms";
 import { installmentDate } from "@/utils/loans";
-import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,8 +30,11 @@ export default function LoansScreen() {
     [editing, setEditing] = useState<string | null>(null),
     [paying, setPaying] = useState(false),
     [showSchedule, setShowSchedule] = useState(false);
+  const list = useRef<ScrollView>(null);
+  const [saving, setSaving] = useState(false),
+    [savedId, setSavedId] = useState("");
   const [mode, setMode] = useState("Interest & term"),
-    [rate, setRate] = useState(""),
+    [rate, setRate] = useState("0"),
     [months, setMonths] = useState("");
   const [name, setName] = useState(""),
     [party, setParty] = useState(""),
@@ -45,12 +48,19 @@ export default function LoansScreen() {
     [error, setError] = useState("");
   let estimate: ReturnType<typeof loanTermsPlan> | null = null,
     estimateError = "";
-  if (mode === "Interest & term" && principal && rate && months) {
+  let term = Number(months);
+  if (mode === "Interest & term" && principal && (months || monthly)) {
     try {
+      if (!months)
+        term = loanMonthsForPayment(
+          Number(principal),
+          Number(rate || 0),
+          Number(monthly),
+        );
       estimate = loanTermsPlan(
         Number(principal),
-        Number(rate),
-        Number(months),
+        Number(rate || 0),
+        term,
         monthly ? Number(monthly) : undefined,
       );
     } catch (e) {
@@ -68,7 +78,7 @@ export default function LoansScreen() {
     setParty(l?.party || "");
     setKind(l?.kind === "lent" ? "Lent" : "Borrowed");
     setMode(l && !l.terms ? "Existing balance" : "Interest & term");
-    setRate(l?.terms ? String(l.terms.annualRate) : "");
+    setRate(l?.terms ? String(l.terms.annualRate) : "0");
     setMonths(l?.terms ? String(l.terms.months) : "");
     setPrincipal(l ? String(l.terms?.amount || l.principal) : "");
     setMonthly(l ? String(l.monthlyPayment) : "");
@@ -76,10 +86,11 @@ export default function LoansScreen() {
     setError("");
     setForm(true);
   };
-  const save = () => {
+  const save = async () => {
+    if (saving) return;
     const data = {
-      name: name.trim(),
-      party: party.trim(),
+      name: name.trim() || "Loan",
+      party: party.trim() || (kind === "Borrowed" ? "Lender" : "Borrower"),
       kind: kind === "Borrowed" ? ("borrowed" as const) : ("lent" as const),
       principal:
         mode === "Interest & term" ? estimate?.total || 0 : Number(principal),
@@ -89,8 +100,8 @@ export default function LoansScreen() {
         mode === "Interest & term"
           ? {
               amount: Number(principal),
-              annualRate: Number(rate),
-              months: Number(months),
+              annualRate: Number(rate || 0),
+              months: term,
             }
           : undefined,
       firstDueDate: due,
@@ -104,19 +115,43 @@ export default function LoansScreen() {
     if (
       !validMoney(principal) ||
       (mode === "Interest & term"
-        ? !validMoney(rate, true) || !months || !estimate
+        ? !validMoney(rate || "0", true) || !estimate
         : !validMoney(monthly)) ||
       !checked.success
     ) {
-      setError(
-        checked.success
-          ? "Enter positive amounts."
-          : checked.error.issues[0]?.message || "Check loan details.",
-      );
+      const message =
+        estimateError ||
+        (!principal
+          ? "Enter the loan amount."
+          : mode === "Interest & term" && !months && !monthly
+            ? "Enter either a term in months or your monthly payment."
+            : checked.success
+              ? "Check the amount, interest and monthly payment."
+              : checked.error.issues[0]?.message || "Check the loan details.");
+      setError(message);
+      Alert.alert("Loan not saved", message);
       return;
     }
-    editing ? app.updateLoan(editing, data) : app.addLoan(data);
-    setForm(false);
+    setSaving(true);
+    try {
+      if (editing) {
+        await app.updateLoan(editing, data);
+      } else {
+        const id = await app.addLoan(data);
+        setSavedId(id);
+        setSelected(null);
+      }
+      setForm(false);
+      requestAnimationFrame(() =>
+        list.current?.scrollTo({ y: 0, animated: true }),
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Try again.";
+      setError(message);
+      Alert.alert("Loan not saved", message);
+    } finally {
+      setSaving(false);
+    }
   };
   const record = () => {
     if (
@@ -172,6 +207,7 @@ export default function LoansScreen() {
     <View style={{ flex: 1, backgroundColor: c.background }}>
       <ProFinancierHeader title="Loans" />
       <ScrollView
+        ref={list}
         contentContainerStyle={{
           padding: 18,
           paddingBottom: insets.bottom + 110,
@@ -218,7 +254,13 @@ export default function LoansScreen() {
               key={l.id}
               onPress={() => setSelected(l.id)}
             >
-              <Card>
+              <Card
+                style={
+                  l.id === savedId
+                    ? { borderColor: c.primary, borderWidth: 2 }
+                    : undefined
+                }
+              >
                 <View
                   style={{
                     flexDirection: "row",
@@ -690,6 +732,7 @@ export default function LoansScreen() {
           )}
           <Button
             title={paying ? "Save repayment" : "Save loan"}
+            loading={saving}
             onPress={paying ? record : save}
           />
           <Button

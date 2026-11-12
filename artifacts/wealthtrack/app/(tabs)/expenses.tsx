@@ -125,10 +125,6 @@ export default function ExpensesScreen() {
     setShowModal(true);
   };
 
-  const params = useLocalSearchParams<{ compose?: string }>();
-  useEffect(() => {
-    if (params.compose) openAdd();
-  }, [params.compose]);
   const openEdit = (exp: Expense) => {
     setDate(exp.date);
     setTime(exp.time || "");
@@ -142,7 +138,9 @@ export default function ExpensesScreen() {
     setShowModal(true);
   };
 
-  const save = () => {
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (saving) return;
     if (!validMoney(amount) || !validDate(date)) {
       Alert.alert(
         "Check expense",
@@ -161,14 +159,24 @@ export default function ExpensesScreen() {
       merchant: merchant || undefined,
       upiRef: upiRef || undefined,
     };
-    if (editingId) {
-      updateExpense(editingId, data);
-    } else {
-      addExpense(data as Omit<Expense, "id">);
+    setSaving(true);
+    try {
+      if (editingId) {
+        updateExpense(editingId, data);
+      } else {
+        await addExpense(data as Omit<Expense, "id">);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowModal(false);
+      reset();
+    } catch (e) {
+      Alert.alert(
+        "Expense not saved",
+        e instanceof Error ? e.message : "Try again.",
+      );
+    } finally {
+      setSaving(false);
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setShowModal(false);
-    reset();
   };
 
   const confirmDelete = (id: string) => {
@@ -473,6 +481,7 @@ export default function ExpensesScreen() {
 
       {/* Add Expense FAB */}
       <Pressable
+        accessibilityRole="button"
         accessibilityLabel="Add expense"
         onPress={openAdd}
         style={{
@@ -636,6 +645,7 @@ export default function ExpensesScreen() {
             <View style={{ height: 24 }} />
             <Button
               title={editingId ? "Save Changes" : "Add Expense"}
+              loading={saving}
               onPress={save}
               disabled={!Number.isFinite(Number(amount)) || Number(amount) <= 0}
             />

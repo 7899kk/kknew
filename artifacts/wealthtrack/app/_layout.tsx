@@ -69,7 +69,7 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <AppProvider>
-                  <StatusBar style="dark" />
+                  <StatusBar style="light" />
                   <RootLayoutNav />
                   <TrackingSettings automatic />
                   <PaymentToast />

@@ -122,14 +122,22 @@ const server = http.createServer((req, res) => {
   const button = (p, name) => p.getByRole("button", { name, exact: true });
   async function section(p, name) {
     const main = {
-      Dashboard: "Home",
-      Home: "Home",
+      Dashboard: "Dashboard",
+      Home: "Dashboard",
       Activity: "Activity",
-      Expenses: "Add",
-      Insights: "Insights",
+      Expenses: "Expenses",
       Loans: "Loans",
-      Others: "Others",
     };
+    if (name === "Others") {
+      await button(p, "Open settings").click();
+      await button(p, "Reminders & more").click();
+      return;
+    }
+    if (name === "Insights") {
+      await section(p, "Others");
+      await button(p, "Insights & budgets").click();
+      return;
+    }
     if (main[name]) {
       await p.getByRole("tab", { name: new RegExp(main[name]) }).click();
       return;
@@ -170,6 +178,9 @@ const server = http.createServer((req, res) => {
         exact: true,
       }),
     ).toBeVisible();
+    await expect(owner.getByRole("tab", { name: /^Add$/ })).toHaveCount(0);
+    await expect(owner.getByRole("tab", { name: /Expenses/ })).toBeVisible();
+    /* old dashboard retains the original pie chart.
     await button(owner, "Year").click();
     await expect(
       owner.getByText("Recorded cash flow · last 12 months", { exact: true }),
@@ -181,8 +192,8 @@ const server = http.createServer((req, res) => {
     await expect(
       owner.getByText("Recorded cash flow · last 12 months", { exact: true }),
     ).toHaveCount(0);
-    await button(owner, "Month").click();
-    await owner.waitForTimeout(650);
+    await button(owner, "Month").click(); */
+    await owner.waitForTimeout(1400);
     await owner.screenshot({
       path: path.join(temp, "home.png"),
       fullPage: true,
@@ -217,15 +228,15 @@ const server = http.createServer((req, res) => {
     await overview.click();
 
     await expect(
-      owner.getByText("Total expenses", { exact: true }),
+      owner.getByText("Starting savings", { exact: true }),
     ).toBeVisible();
     await button(owner, "Close").click();
     for (const name of ["Dues", "Goals", "Profile"]) {
       await section(owner, name);
-      const header = button(owner, "Open settings").locator("..");
+      const header = button(owner, "Open settings").locator("../..");
       await expect(header.getByText("Hi, Test", { exact: true })).toBeVisible();
       await expect(
-        header.getByText("Pro Financier", { exact: true }),
+        header.getByText("PRO FINANCIER", { exact: true }),
       ).toBeVisible();
     }
     await section(owner, "Insights");
@@ -394,6 +405,71 @@ const server = http.createServer((req, res) => {
       path: path.join(temp, "loans.png"),
       fullPage: true,
     });
+    await section(owner, "Expenses");
+    await button(owner, "Add expense").click();
+    await fill(owner, "Amount", "321.45");
+    await fill(owner, "Merchant / Paid To (optional)", "Manual shop");
+    await fill(owner, "Notes (optional)", "Manual expense check");
+    await button(owner, "Add Expense").click();
+    await section(owner, "Activity");
+    await button(owner, "Expenses").click();
+    await expect(
+      button(owner, "Edit expense Manual expense check"),
+    ).toContainText("−₹321.45");
+    await button(owner, "Income").click();
+    await expect(
+      button(owner, "Edit expense Manual expense check"),
+    ).toHaveCount(0);
+    await button(owner, "Expenses").click();
+    await button(owner, "Edit expense Manual expense check").click();
+    await owner
+      .getByRole("dialog")
+      .getByRole("button", { name: "Income", exact: true })
+      .click();
+    await button(owner, "Save").click();
+    await expect(owner.getByRole("dialog")).toHaveCount(0);
+    await button(owner, "Income").click();
+    await expect(button(owner, "Edit income Money received")).toContainText(
+      "+₹321.45",
+    );
+    await button(owner, "Edit income Money received").click();
+    await owner
+      .getByRole("dialog")
+      .getByRole("button", { name: "Expense", exact: true })
+      .click();
+    await button(owner, "Save").click();
+    await expect(owner.getByRole("dialog")).toHaveCount(0);
+    await button(owner, "Expenses").click();
+    await expect(
+      button(owner, "Edit expense Manual expense check"),
+    ).toContainText("−₹321.45");
+    await button(owner, "Edit expense Manual expense check").click();
+    await button(owner, "Delete transaction").click();
+    await section(owner, "Home");
+    await expect(button(owner, "Open balance details")).toContainText(
+      "₹70,000",
+    );
+    // Loan with only an amount and EMI (zero interest and duration inferred), persists on reload.
+    await section(owner, "Loans");
+    await button(owner, "Add loan").click();
+    await fill(owner, "Loan name", "Simple loan");
+    await fill(owner, "Loan amount", "6000");
+    await fill(owner, "Monthly payment (optional)", "1000");
+    await button(owner, "Save loan").click();
+    await expect(button(owner, "Open loan Simple loan")).toContainText(
+      "₹6,000",
+    );
+    await owner.reload();
+    await expect(button(owner, "Open loan Simple loan")).toContainText(
+      "₹6,000",
+    );
+    await section(owner, "Home");
+    await expect(button(owner, "Open monthly loan payments")).toContainText(
+      "₹2,500",
+    );
+    await section(owner, "Loans");
+    await button(owner, "Open loan Simple loan").click();
+    await button(owner, "Delete loan").click();
     // New detailed loan terms feed the same dashboard reserve and survive reload.
     await section(owner, "Loans");
     await button(owner, "Add loan").click();
@@ -549,7 +625,7 @@ const server = http.createServer((req, res) => {
     });
     expect(errors).toEqual([]);
     console.log(
-      "Browser checks passed: detailed APR/EMI/term/schedule, dashboard interest reserve, Others/reminder preview, goal photo persistence and backup, ivory dashboard/graphs/details, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
+      "Browser checks passed: detailed APR/EMI/term/schedule, dashboard interest reserve, Others/reminder preview, goal photo persistence and backup, restored classic teal dashboard/pie/details, manual expense sign/filter and correction, inferred-term loan persistence, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
     );
     console.log("Evidence:", temp);
   } finally {

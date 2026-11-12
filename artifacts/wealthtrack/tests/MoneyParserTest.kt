@@ -67,6 +67,11 @@ fun main() {
   check(paymentKey!=refunded.fingerprint("bank","3",3000,"refund"))
   check(refunded.fingerprint("bank","3",3000,"refund")==refunded.fingerprint("phonepe","4",4000,"duplicate refund"))
   val smsCases=listOf(
+    Triple("INR 500 DR from A/c XX1234. Ref: DR1000001", "expense",500.0),
+    Triple("A/c XX1234 debit INR 750. Ref: DB1000001", "expense",750.0),
+    Triple("Card purchase INR 250. Ref: CP1000001", "expense",250.0),
+    Triple("INR 500 received by merchant. UPI Ref: MR1000001", "review",500.0),
+    Triple("Beneficiary account credited INR 500. Ref: BC1000001", "review",500.0),
     Triple("INR 1,500 debited from A/c XX1234. Avl Bal INR 40,500. Ref: ABC123456", "expense",1500.0),
     Triple("Your a/c credited by Rs. 10,000. Available balance Rs. 90,000", "income",10000.0),
     Triple("Available balance INR 40,500. INR 200 debited from account XX1234", "expense",200.0),

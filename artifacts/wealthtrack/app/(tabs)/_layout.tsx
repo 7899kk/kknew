@@ -12,73 +12,49 @@ export default function TabLayout() {
     title: string;
     icon: React.ComponentProps<typeof Feather>["name"];
   }[] = [
-    { name: "index", title: "Home", icon: "home" },
-    { name: "activity", title: "Activity", icon: "file-text" },
-    { name: "expenses", title: "Add", icon: "plus" },
-    { name: "insights", title: "Insights", icon: "bar-chart-2" },
-    { name: "loans", title: "Loans", icon: "credit-card" },
-    { name: "others", title: "Others", icon: "grid" },
+    { name: "index", title: "Dashboard", icon: "home" },
+    { name: "expenses", title: "Expenses", icon: "credit-card" },
+    { name: "activity", title: "Activity", icon: "list" },
+    { name: "debts", title: "Dues", icon: "repeat" },
+    { name: "goals", title: "Goals", icon: "target" },
+    { name: "billsplit", title: "Split", icon: "users" },
+    { name: "loans", title: "Loans", icon: "calendar" },
   ];
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: c.foreground,
+        tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.mutedForeground,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: c.card,
-          borderTopWidth: 0,
+          backgroundColor: c.background,
+          borderTopWidth: 1,
+          borderTopColor: c.border,
           height: Platform.OS === "web" ? 76 : 64 + insets.bottom,
           paddingBottom: Platform.OS === "web" ? 16 : 8 + insets.bottom,
           paddingTop: 7,
         },
-        tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+        tabBarLabelStyle: {
+          fontSize: 9,
+          marginHorizontal: 0,
+          fontFamily: "Inter_600SemiBold",
+        },
       }}
     >
       {items.map((item) => (
         <Tabs.Screen
           key={item.name}
           name={item.name}
-          listeners={
-            item.name === "expenses"
-              ? {
-                  tabPress: (e) => {
-                    e.preventDefault();
-                    router.navigate({
-                      pathname: "/(tabs)/expenses",
-                      params: { compose: String(Date.now()) },
-                    } as Href);
-                  },
-                }
-              : undefined
-          }
           options={{
             title: item.title,
-            tabBarIcon: ({ color }) =>
-              item.name === "expenses" ? (
-                <View
-                  style={{
-                    height: 43,
-                    width: 43,
-                    borderRadius: 23,
-                    backgroundColor: c.gold,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginTop: -14,
-                    borderWidth: 5,
-                    borderColor: c.background,
-                  }}
-                >
-                  <Feather name="plus" size={21} color={c.foreground} />
-                </View>
-              ) : (
-                <Feather name={item.icon} size={19} color={color} />
-              ),
+            tabBarIcon: ({ color }) => (
+              <Feather name={item.icon} size={20} color={color} />
+            ),
           }}
         />
       ))}
-      {["debts", "goals", "billsplit", "profile"].map((name) => (
+      {["profile", "others", "insights"].map((name) => (
         <Tabs.Screen key={name} name={name} options={{ href: null }} />
       ))}
     </Tabs>

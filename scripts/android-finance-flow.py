@@ -43,7 +43,7 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
-    tabs={'Home','Activity','Add','Insights','Loans','Others'}
+    tabs={'Dashboard','Expenses','Activity','Dues','Goals','Split','Loans'}
     nav_bounds=[]
     for candidate in root.iter('node'):
         if candidate.get('text') not in tabs:continue
@@ -89,8 +89,10 @@ def find(label,edit=False):
 
 def tap(label,edit=False):
     if not edit:
-        label={'Dashboard':'Home','Expenses':'Add'}.get(label,label)
-        if label in {'Goals','Split','Dues','Profile'}:
+        label={'Home':'Dashboard'}.get(label,label)
+        if label=='Others':
+            tap('Open settings');return tap_menu('Reminders & more')
+        if label=='Profile':
             tap('Open settings')
             return tap({'Split':'Bill split','Dues':'Debts & credits'}.get(label,label)) if label not in {'Goals','Profile'} else tap_menu(label)
         if label=='Add expense' and match(ui(),'Amount',True):return
@@ -98,7 +100,7 @@ def tap(label,edit=False):
     x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
     time.sleep(.8)
-    if label=='Home':
+    if label=='Dashboard':
         adb('shell','input','swipe','530','550','530','1500','350')
         adb('shell','input','swipe','530','550','530','1500','350')
         time.sleep(.4)
@@ -106,6 +108,12 @@ def tap(label,edit=False):
 def tap_menu(label):
     node=find(label)
     x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.8)
+
+def tap_filter(label):
+    nodes=[n for n in match(ui(),label) if n.get('class')=='android.widget.Button' and int(re.findall(r'\d+',n.get('bounds'))[1])<1500]
+    assert len(nodes)==1, f'Expected one Activity filter {label}, got {len(nodes)}'
+    x1,y1,x2,y2=map(int,re.findall(r'\d+',nodes[0].get('bounds')))
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.8)
 
 def enter(label,value):
@@ -159,6 +167,11 @@ if __name__ == "__main__":
         enter('Merchant / Paid To (optional)','Groceries')
         tap('Cash')
         tap('Add Expense')
+        tap('Activity');tap_filter('Expenses')
+        assert any(n.get('text','').startswith('−') and '2,500' in n.get('text','') for n in ui().iter('node')), 'Manual expense is missing its debit sign'
+        tap_filter('Income')
+        assert not any('2,500' in n.get('text','') for n in ui().iter('node')), 'Manual expense appeared under Income'
+        tap_filter('All');save('manual-expense-direction')
         tap('Dashboard')
         contains('98,500')
         save('expense-98500')

@@ -84,6 +84,9 @@ try:
     tap('Dashboard');contains('90,000')
     sms('INR 10,000 credited to A/c XX1234. Avl Bal INR 100,000. UTR: TEST100003')
     contains('90,000');save('sms-separate-credit-counted-once')
+    # A merchant receiving money is not evidence of income to the phone owner.
+    sms('INR 700 received by merchant. UPI Ref: MERCHANT7001')
+    tap('Activity');contains('Needs review');tap('Dismiss');tap('Dashboard');contains('90,000');save('sms-recipient-not-income')
     sms('INR 900 debited from account XX1234. Transaction failed. UTR: FAIL900001')
     sms('INR 800 debited from account XX1234. Payment pending. UTR: PEND800001')
     sms('INR 600 debited from account XX1234. Status: FAILURE. UTR: FAIL600001')
@@ -94,8 +97,14 @@ try:
     sms('INR 1,500 debited from A/c XX1234. Avl Bal INR 88,500. UTR: TEST150001')
     if not any(n.get('text')=='Money debited' for n in ui().iter('node')):accept_review('Expense')
     reason('Groceries');tap('Dashboard');contains('88,500');save('sms-debit-reason')
+    tap('Activity');h['tap_filter']('Expenses')
+    assert any(n.get('text','').startswith('−') and '1,500' in n.get('text','') for n in ui().iter('node')), 'SMS debit has no expense row/sign'
+    h['tap_filter']('Income')
+    assert not any('1,500' in n.get('text','') for n in ui().iter('node')), 'SMS debit appeared under Income'
+    h['tap_filter']('All');save('sms-debit-direction');tap('Dashboard')
+
     adb('shell','input','keyevent','3')
-    sms('INR 500 debited from A/c XX1234. Avl Bal INR 88,000. UTR: TEST500001')
+    sms('INR 500 DR from A/c XX1234. Avl Bal INR 88,000. UTR: TEST500001')
     start()
     if not any(n.get('text')=='Money debited' for n in ui().iter('node')):accept_review('Expense')
     reason('Fuel');tap('Dashboard');contains('88,000');save('sms-background-capture')

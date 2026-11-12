@@ -1,3 +1,4 @@
+import { confirmAction } from "@/utils/dialogs";
 import { Pressable } from "react-native";
 import { router, type Href } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ import { debitReasonDetails, expenseCategories } from "@/utils/debitReasons";
 
 type Editing = {
   id?: string;
+  originalKind?: "expense" | "income";
   kind: "expense" | "income" | "review";
   amount: string;
   notes: string;
@@ -38,7 +40,9 @@ export default function ActivityScreen() {
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState<Editing | null>(null);
   const [reviewKind, setReviewKind] = useState("Expense");
-  const save = () => {
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (saving) return;
     if (!editing) return;
     const amount = Number(editing.amount);
     if (!validMoney(editing.amount) || !validDate(editing.date)) {
@@ -48,62 +52,82 @@ export default function ActivityScreen() {
       );
       return;
     }
-    if (editing.kind === "review" && editing.id)
-      app.resolvePayment(
-        editing.id,
-        reviewKind === "Income" ? "income" : "expense",
-        amount,
-        {
-          name: editing.name,
-          category: editing.category,
-          notes: editing.notes,
-        },
-      );
-    else if (editing.kind === "income") {
-      const data = {
-        amount,
-        date: editing.date,
-        notes: editing.notes,
-        name: editing.name?.trim() || "Money received",
-        category: editing.category || "Uncategorized",
-      };
-      editing.id ? app.updateIncome(editing.id, data) : app.addIncome(data);
-    } else if (editing.id) {
-      const original = app.expenses.find((item) => item.id === editing.id);
-      const details = debitReasonDetails(
-        editing.notes,
-        (editing.category || "Others") as ExpenseCategory,
-      );
-      if (original?.needsReason && !details) {
-        Alert.alert(
-          "Add a reason",
-          "Enter a reason between 1 and 200 characters.",
+    setSaving(true);
+    try {
+      if (
+        editing.id &&
+        editing.originalKind &&
+        editing.kind !== "review" &&
+        editing.originalKind !== editing.kind
+      ) {
+        await app.changeTransactionDirection(
+          editing.id,
+          editing.originalKind,
+          editing.kind,
+          {
+            amount,
+            date: editing.date,
+            notes: editing.notes,
+            name: editing.name,
+            category: editing.category,
+          },
         );
-        return;
+      } else if (editing.kind === "review" && editing.id)
+        app.resolvePayment(
+          editing.id,
+          reviewKind === "Income" ? "income" : "expense",
+          amount,
+          {
+            name: editing.name,
+            category: editing.category,
+            notes: editing.notes,
+          },
+        );
+      else if (editing.kind === "income") {
+        const data = {
+          amount,
+          date: editing.date,
+          notes: editing.notes,
+          name: editing.name?.trim() || "Money received",
+          category: editing.category || "Uncategorized",
+        };
+        editing.id ? app.updateIncome(editing.id, data) : app.addIncome(data);
+      } else if (editing.id) {
+        const original = app.expenses.find((item) => item.id === editing.id);
+        const details = debitReasonDetails(
+          editing.notes,
+          (editing.category || "Others") as ExpenseCategory,
+        );
+        if (original?.needsReason && !details) {
+          Alert.alert(
+            "Add a reason",
+            "Enter a reason between 1 and 200 characters.",
+          );
+          return;
+        }
+        app.updateExpense(editing.id, {
+          amount,
+          date: editing.date,
+          notes: editing.notes,
+          category: (editing.category || "Others") as ExpenseCategory,
+          ...(details || {}),
+        });
       }
-      app.updateExpense(editing.id, {
-        amount,
-        date: editing.date,
-        notes: editing.notes,
-        category: (editing.category || "Others") as ExpenseCategory,
-        ...(details || {}),
-      });
+      setEditing(null);
+    } catch (e) {
+      Alert.alert(
+        "Transaction not saved",
+        e instanceof Error ? e.message : "Try again.",
+      );
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
   };
   const remove = (id: string, kind: "expense" | "income") =>
-    Alert.alert(
+    confirmAction(
       "Delete entry?",
-      "This removes the entry from your totals. A captured notification will not be imported again.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () =>
-            kind === "income" ? app.deleteIncome(id) : app.deleteExpense(id),
-        },
-      ],
+      "This removes the entry from your totals. Captured messages will not be imported again.",
+      () => (kind === "income" ? app.deleteIncome(id) : app.deleteExpense(id)),
     );
   const rows = [
     ...app.expenses.map((e) => ({ ...e, kind: "expense" as const })),
@@ -234,7 +258,7 @@ export default function ActivityScreen() {
               </Card>
             )}
             <Button
-              title="Add income"
+              title="Record income"
               icon="plus"
               onPress={() => {
                 const d = new Date();
@@ -331,6 +355,7 @@ export default function ActivityScreen() {
               setEditing({
                 id: e.id,
                 kind: e.kind,
+                originalKind: e.kind,
                 amount: String(e.amount),
                 notes:
                   e.kind === "expense" && e.needsReason ? "" : e.notes || "",
@@ -384,6 +409,7 @@ export default function ActivityScreen() {
                     numberOfLines={1}
                     style={{ color: colors.mutedForeground, fontSize: 10 }}
                   >
+                    {e.kind === "expense" ? "Expense" : "Income"} ·{" "}
                     {e.category || "Uncategorized"} ·{" "}
                     {e.source?.startsWith("Bank SMS")
                       ? "Bank SMS"
@@ -438,6 +464,30 @@ export default function ActivityScreen() {
           >
             Edit transaction
           </Text>
+          {editing?.originalKind && editing.kind !== "review" && (
+            <PillSelector
+              options={["Expense", "Income"]}
+              value={editing.kind === "expense" ? "Expense" : "Income"}
+              onChange={(v) =>
+                setEditing((e) =>
+                  e
+                    ? {
+                        ...e,
+                        kind: v === "Expense" ? "expense" : "income",
+                        category:
+                          v === "Expense"
+                            ? expenseCategories.includes(
+                                e.category as ExpenseCategory,
+                              )
+                              ? e.category
+                              : "Others"
+                            : "Uncategorized",
+                      }
+                    : null,
+                )
+              }
+            />
+          )}
           {editing?.kind === "review" && (
             <PillSelector
               options={["Expense", "Income"]}
@@ -513,7 +563,7 @@ export default function ActivityScreen() {
               />
             </>
           )}
-          <Button title="Save" onPress={save} />
+          <Button title="Save" onPress={save} loading={saving} />
           {editing?.id && editing.kind !== "review" && (
             <Button
               title="Delete transaction"

@@ -1,3 +1,4 @@
+import { correctTransactionDirection } from "@/utils/transactionDirection";
 import { paymentReminders } from "@/utils/paymentReminders";
 import { linkedObligations, localGroupMember } from "@/utils/obligations";
 import type { Obligation } from "@/utils/obligations";
@@ -66,6 +67,7 @@ export interface Expense {
   bankKey?: string;
   accountKey?: string;
   balanceAfter?: number;
+  directionCorrected?: boolean;
   possibleDuplicateOf?: string;
 }
 
@@ -183,6 +185,7 @@ export interface IncomeEntry {
   reference?: string | null;
   time?: string;
   timestamp?: number;
+  directionCorrected?: boolean;
 }
 export interface PaymentReview extends Omit<CapturedPayment, "kind"> {
   kind: "review" | "transfer";
@@ -215,11 +218,11 @@ interface AppContextType extends AppState {
   monthlyLoanPayments: number;
   setRemindersEnabled: (value: boolean) => void;
   setGroupMember: (groupId: string, member: string) => void;
-  addLoan: (data: Omit<Loan, "id" | "payments">) => void;
+  addLoan: (data: Omit<Loan, "id" | "payments">) => Promise<string>;
   updateLoan: (
     id: string,
     data: Partial<Omit<Loan, "payments" | "id">>,
-  ) => void;
+  ) => Promise<void>;
   deleteLoan: (id: string) => void;
   recordLoanPayment: (id: string, payment: Omit<LoanPayment, "id">) => void;
   deleteLoanPayment: (id: string, paymentId: string) => void;
@@ -236,6 +239,18 @@ interface AppContextType extends AppState {
   resetData: () => Promise<void>;
   retrySave: () => void;
   storageError: string | null;
+  changeTransactionDirection: (
+    id: string,
+    from: "expense" | "income",
+    to: "expense" | "income",
+    details: {
+      amount: number;
+      date: string;
+      notes?: string;
+      name?: string;
+      category?: string;
+    },
+  ) => Promise<void>;
   addIncome: (data: Omit<IncomeEntry, "id">) => void;
   updateIncome: (id: string, data: Partial<IncomeEntry>) => void;
   deleteIncome: (id: string) => void;
@@ -246,7 +261,7 @@ interface AppContextType extends AppState {
     details?: { name?: string; category?: string; notes?: string },
   ) => void;
   updateProfile: (profile: Partial<UserProfile>) => void;
-  addExpense: (expense: Omit<Expense, "id">) => void;
+  addExpense: (expense: Omit<Expense, "id">) => Promise<string>;
   updateExpense: (id: string, expense: Partial<Expense>) => void;
   deleteExpense: (id: string) => void;
   addAutoExpense: (ae: Omit<AutoExpense, "id">) => void;
@@ -417,19 +432,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const update = useCallback(
     (updater: (s: AppState) => AppState) => {
-      if (restoring.current || resetting.current) return;
+      if (restoring.current || resetting.current) return false;
       try {
         const previous = stateRef.current,
           proposed = updater(previous);
-        if (proposed === previous) return;
+        if (proposed === previous) return false;
         const next = ledgerSchema.parse(proposed);
         stateRef.current = next;
         setState(next);
         persist(next);
+        return true;
       } catch {
         setStorageError(
           "This change contains invalid data and was not applied. Check amounts, dates and group members.",
         );
+        return false;
       }
     },
     [persist],
@@ -451,24 +468,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
   const addLoan = useCallback(
-    (data: Omit<Loan, "id" | "payments">) =>
-      update((s) => ({
-        ...s,
-        loans: [
-          loanSchema.parse({ ...data, id: genId(), payments: [] }),
-          ...s.loans,
-        ],
-      })),
+    async (data: Omit<Loan, "id" | "payments">) => {
+      const loan = loanSchema.parse({ ...data, id: genId(), payments: [] });
+      if (!update((s) => ({ ...s, loans: [loan, ...s.loans] })))
+        throw Error(
+          "Loan could not be added. Keep the form open and try again.",
+        );
+      await saving.current;
+      return loan.id;
+    },
     [update],
   );
   const updateLoan = useCallback(
-    (id: string, data: Partial<Omit<Loan, "id" | "payments">>) =>
-      update((s) => ({
-        ...s,
-        loans: s.loans.map((l) =>
-          l.id === id ? loanSchema.parse({ ...l, ...data }) : l,
-        ),
-      })),
+    async (id: string, data: Partial<Omit<Loan, "id" | "payments">>) => {
+      if (
+        !update((s) => {
+          const original = s.loans.find((l) => l.id === id);
+          if (!original) return s;
+          const changed = loanSchema.parse({ ...original, ...data });
+          return {
+            ...s,
+            loans: s.loans.map((l) => (l.id === id ? changed : l)),
+          };
+        })
+      )
+        throw Error(
+          "Loan could not be updated. Check the details and try again.",
+        );
+      await saving.current;
+    },
     [update],
   );
   const deleteLoan = useCallback(
@@ -719,6 +747,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+  const changeTransactionDirection = useCallback(
+    async (
+      id: string,
+      from: "expense" | "income",
+      to: "expense" | "income",
+      details: {
+        amount: number;
+        date: string;
+        notes?: string;
+        name?: string;
+        category?: string;
+      },
+    ) => {
+      const next = correctTransactionDirection(
+        stateRef.current,
+        id,
+        from,
+        to,
+        details,
+      );
+      if (!update(() => next))
+        throw Error("Could not correct this entry. Check the details.");
+      await saving.current;
+    },
+    [update],
+  );
   const addIncome = useCallback(
     (data: Omit<IncomeEntry, "id">) => {
       if (!Number.isFinite(data.amount) || data.amount <= 0) return;
@@ -760,10 +814,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addExpense = useCallback(
-    (expense: Omit<Expense, "id">) => {
+    async (expense: Omit<Expense, "id">) => {
       const id = genId();
-      update((s) => ({ ...s, expenses: [{ ...expense, id }, ...s.expenses] }));
+      if (
+        !update((s) => ({
+          ...s,
+          expenses: [{ ...expense, id }, ...s.expenses],
+        }))
+      )
+        throw Error("Expense was not added. Check its amount and date.");
+      await saving.current;
       announceManual(id, "expense");
+      return id;
     },
     [update, announceManual],
   );
@@ -1096,6 +1158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         resetData,
         retrySave,
         storageError,
+        changeTransactionDirection,
         addIncome,
         updateIncome,
         deleteIncome,

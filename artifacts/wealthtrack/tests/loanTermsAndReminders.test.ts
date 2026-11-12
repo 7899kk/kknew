@@ -210,3 +210,9 @@ assert.equal(saved.remindersEnabled, true);
 console.log(
   "Loan terms/reminder/dashboard checks passed: reducing interest with independent integer oracle, actual EMI and final payment, month ends, invalid plans, seven-day reminders and payment cancellation, SMS cash/graphs and delayed-repeat review, goal image and terms backup.",
 );
+
+const { loanMonthsForPayment } = await import("../utils/loanTerms");
+assert.equal(loanMonthsForPayment(12000, 0, 2000), 6);
+assert.equal(loanMonthsForPayment(100000, 12, 8884.88), 12);
+assert.equal(loanMonthsForPayment(2.01, 0, 1), 3);
+assert.throws(() => loanMonthsForPayment(100000, 12, 1000));
