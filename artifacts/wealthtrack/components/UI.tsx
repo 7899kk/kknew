@@ -55,6 +55,7 @@ export function Button({
   disabled = false,
   style,
   icon,
+  accessibilityLabel,
 }: {
   title: string;
   onPress: () => void;
@@ -63,6 +64,7 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
   icon?: string;
+  accessibilityLabel?: string;
 }) {
   const colors = useColors();
   const bg =
@@ -83,7 +85,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel || title}
       onPress={() => {
         if (!disabled && !loading) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -168,7 +170,7 @@ export function Input({
           flexDirection: "row",
           alignItems: "center",
           backgroundColor: colors.secondary,
-          borderRadius: 14,
+          borderRadius: 10,
           borderWidth: 1,
           borderColor: colors.border,
           paddingHorizontal: 14,
@@ -206,10 +208,8 @@ export function Input({
           style={{
             flex: 1,
             color: colors.foreground,
-            fontSize: label === "Amount" ? 32 : 16,
-            fontFamily:
-              label === "Amount" ? "Inter_600SemiBold" : "Inter_400Regular",
-            paddingVertical: label === "Amount" ? 18 : 10,
+            fontSize: 16,
+            paddingVertical: 10,
             minHeight: multiline ? 80 : undefined,
           }}
         />
@@ -476,16 +476,7 @@ export function PillSelector<T extends string>({
 }) {
   const colors = useColors();
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 4,
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        padding: 4,
-      }}
-    >
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
       {options.map((opt) => (
         <Pressable
           key={opt}
@@ -500,10 +491,8 @@ export function PillSelector<T extends string>({
             paddingHorizontal: 14,
             paddingVertical: 8,
             borderRadius: 20,
-            flexGrow: 1,
-            alignItems: "center",
-            backgroundColor: value === opt ? colors.primary : colors.card,
-            borderWidth: 0,
+            backgroundColor: value === opt ? colors.primary : colors.secondary,
+            borderWidth: 1,
             borderColor: value === opt ? colors.primary : colors.border,
           }}
         >

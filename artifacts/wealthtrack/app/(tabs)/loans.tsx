@@ -1,3 +1,4 @@
+import { ReminderSettings } from "@/components/ReminderSettings";
 import { loanMonthsForPayment, loanTermsPlan } from "@/utils/loanTerms";
 import { installmentDate } from "@/utils/loans";
 import React, { useEffect, useRef, useState } from "react";
@@ -30,6 +31,7 @@ export default function LoansScreen() {
     [editing, setEditing] = useState<string | null>(null),
     [paying, setPaying] = useState(false),
     [showSchedule, setShowSchedule] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
   const list = useRef<ScrollView>(null);
   const [saving, setSaving] = useState(false),
     [savedId, setSavedId] = useState("");
@@ -233,6 +235,13 @@ export default function LoansScreen() {
             </View>
           </View>
         </Card>
+        <Button
+          title="Payment reminders"
+          icon="bell"
+          variant="secondary"
+          onPress={() => setShowReminders(!showReminders)}
+        />
+        {showReminders && <ReminderSettings />}
         <Button title="Add loan" icon="plus" onPress={() => open()} />
         {!app.loans.length && (
           <Text

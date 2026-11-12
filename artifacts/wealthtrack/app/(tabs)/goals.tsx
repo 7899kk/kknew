@@ -1,7 +1,5 @@
-import { pickProfilePhoto } from "@/utils/profilePhoto";
 import { GoalImage } from "@/components/GoalImage";
-import { AnimatedMoney } from "@/components/AnimatedMoney";
-import Svg, { Circle } from "react-native-svg";
+import { pickProfilePhoto } from "@/utils/profilePhoto";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import { nextMonthSavingsPlan, goalSavingsPlan } from "@/utils/financeSummary";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
@@ -249,64 +247,72 @@ export default function GoalsScreen() {
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
         maxToRenderPerBatch={15}
-        ListHeaderComponent={
-          <View style={{ gap: 12, marginBottom: 16 }}>
-            <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
-              <AnimatedMoney
-                value={totalSaved}
-                style={{
-                  fontSize: 33,
-                  fontFamily: "Inter_700Bold",
-                  color: colors.foreground,
-                }}
-              ></AnimatedMoney>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: colors.mutedForeground,
-                  marginTop: 6,
-                }}
+        ListHeaderComponent={() => (
+          <>
+            {goals.length > 0 && (
+              <Card
+                style={{ marginBottom: 20, backgroundColor: colors.primary }}
               >
-                Saved toward {goals.length}{" "}
-                {goals.length === 1 ? "goal" : "goals"}
-              </Text>
-            </View>
-            <Card>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <View style={{ flex: 1, gap: 5 }}>
-                  <Text
-                    style={{
-                      color: colors.foreground,
-                      fontFamily: "Inter_600SemiBold",
-                    }}
-                  >
-                    {forecast.targetMonth} saving plan
-                  </Text>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
-                    Based on {forecast.referenceMonth}
-                    {forecast.estimated ? " · estimate" : ""}
-                  </Text>
-                </View>
+                <Text
+                  style={{ color: "#ffffff99", fontSize: 13, marginBottom: 4 }}
+                >
+                  Total Goals Progress
+                </Text>
                 <Text
                   style={{
-                    fontSize: 22,
+                    color: "#ffffff",
+                    fontSize: 26,
+                    fontWeight: "700",
                     fontFamily: "Inter_700Bold",
-                    color: colors.foreground,
                   }}
                 >
-                  {formatCurrency(forecast.total)}
+                  {formatCurrency(totalSaved)} / {formatCurrency(totalTarget)}
                 </Text>
-              </View>
+                <View style={{ marginTop: 12 }}>
+                  <ProgressBar
+                    progress={totalTarget > 0 ? totalSaved / totalTarget : 0}
+                    color="#ffffff"
+                    height={8}
+                  />
+                </View>
+                <Text
+                  style={{ color: "#ffffff80", fontSize: 12, marginTop: 8 }}
+                >
+                  {totalTarget > 0
+                    ? Math.round((totalSaved / totalTarget) * 100)
+                    : 0}
+                  % of all goals funded
+                </Text>
+              </Card>
+            )}
+            <Card style={{ marginBottom: 16 }}>
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontWeight: "700",
+                  fontSize: 17,
+                }}
+              >
+                {forecast.targetMonth} savings plan
+              </Text>
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: 23,
+                  fontWeight: "700",
+                  marginTop: 8,
+                }}
+              >
+                {formatCurrency(forecast.total)}
+              </Text>
+              <Text style={{ color: colors.mutedForeground, marginTop: 6 }}>
+                Based on {forecast.referenceMonth}
+                {forecast.estimated ? " · estimate" : ""}
+              </Text>
             </Card>
-          </View>
-        }
+            <SectionHeader title="Your Goals" />
+          </>
+        )}
         ListEmptyComponent={() => (
           <EmptyState
             icon="target"
@@ -315,140 +321,310 @@ export default function GoalsScreen() {
           />
         )}
         renderItem={({ item }) => {
-          const remaining = Math.max(0, item.targetAmount - item.savedAmount),
-            pct = Math.min(1, item.savedAmount / item.targetAmount),
-            quick = Math.min(1000, remaining),
-            circ = 2 * Math.PI * 23;
+          const pct =
+            item.targetAmount > 0 ? item.savedAmount / item.targetAmount : 0;
+          const remaining = item.targetAmount - item.savedAmount;
+          const reached = item.savedAmount >= item.targetAmount;
+          const days = item.targetDate ? daysUntil(item.targetDate) : null;
+          const monthly = monthlyNeeded(item);
+          const overdue = days !== null && days < 0;
+
           return (
-            <Card style={{ marginBottom: 13 }}>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <View style={{ height: 56, width: 56 }}>
-                  <Svg width={56} height={56}>
-                    <Circle
-                      cx={28}
-                      cy={28}
-                      r={23}
-                      stroke={colors.muted}
-                      strokeWidth={4}
-                      fill="none"
-                    />
-                    <Circle
-                      cx={28}
-                      cy={28}
-                      r={23}
-                      stroke={pct === 1 ? colors.success : colors.gold}
-                      strokeWidth={4}
-                      fill="none"
-                      strokeDasharray={`${circ * pct} ${circ}`}
-                      transform="rotate(-90 28 28)"
-                    />
-                  </Svg>
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color: colors.foreground,
-                      }}
-                    >
-                      {Math.round(pct * 100)}%
-                    </Text>
-                  </View>
-                </View>
-                {item.imageUri && (
-                  <GoalImage uri={item.imageUri} emoji={item.emoji} size={48} />
-                )}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit goal ${item.name}`}
-                  onPress={() => openEdit(item)}
-                  style={{ flex: 1, gap: 6 }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontFamily: "Inter_600SemiBold",
-                      color: colors.foreground,
-                    }}
-                  >
-                    {item.emoji} {item.name}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
-                    {formatCurrency(item.savedAmount)} /{" "}
-                    {formatCurrency(item.targetAmount)}
-                  </Text>
-                  {item.targetDate && (
-                    <Text
-                      style={{ fontSize: 10, color: colors.mutedForeground }}
-                    >
-                      Due {item.targetDate}
-                    </Text>
-                  )}
-                </Pressable>
-                {quick > 0 && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Save ${quick} toward ${item.name}`}
-                    onPress={() => addToSavings(item, quick)}
-                    style={{
-                      width: 33,
-                      height: 33,
-                      borderRadius: 17,
-                      backgroundColor: colors.goldLight,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name="plus" size={17} color={colors.foreground} />
-                  </Pressable>
-                )}
-              </View>
+            <Card style={{ marginBottom: 14 }}>
+              {/* Header row */}
               <View
                 style={{
                   flexDirection: "row",
-                  alignItems: "center",
                   justifyContent: "space-between",
-                  marginTop: 13,
-                  gap: 9,
+                  alignItems: "flex-start",
+                  marginBottom: 10,
                 }}
               >
-                <Text
+                <View
                   style={{
-                    color: colors.mutedForeground,
-                    fontSize: 11,
+                    flexDirection: "row",
+                    gap: 10,
+                    alignItems: "center",
                     flex: 1,
                   }}
                 >
-                  {remaining
-                    ? `Save ${formatCurrency(forecast.suggestions[item.id] || 0)}/month`
-                    : "Goal reached"}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Delete goal ${item.name}`}
-                  onPress={() => confirmDelete(item.id)}
-                  style={{ padding: 6 }}
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
+                      backgroundColor: colors.accent,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <GoalImage
+                      uri={item.imageUri}
+                      emoji={item.emoji}
+                      size={44}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "700",
+                        color: colors.foreground,
+                        fontFamily: "Inter_700Bold",
+                      }}
+                    >
+                      {item.name}
+                    </Text>
+                    {item.description ? (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: colors.mutedForeground,
+                          marginTop: 1,
+                        }}
+                      >
+                        {item.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <Pressable onPress={() => openEdit(item)} hitSlop={8}>
+                    <Feather
+                      name="edit-2"
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                  </Pressable>
+                  <Pressable onPress={() => confirmDelete(item.id)} hitSlop={8}>
+                    <Feather name="trash-2" size={16} color={colors.expense} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Target date + deadline banner */}
+              {item.targetDate && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: overdue
+                      ? colors.expense + "15"
+                      : reached
+                        ? colors.success + "15"
+                        : colors.primary + "12",
+                    borderRadius: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 7,
+                    marginBottom: 12,
+                  }}
                 >
                   <Feather
-                    name="trash-2"
-                    size={14}
-                    color={colors.mutedForeground}
+                    name="calendar"
+                    size={13}
+                    color={
+                      overdue
+                        ? colors.expense
+                        : reached
+                          ? colors.success
+                          : colors.primary
+                    }
                   />
-                </Pressable>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: overdue
+                        ? colors.expense
+                        : reached
+                          ? colors.success
+                          : colors.primary,
+                      flex: 1,
+                    }}
+                  >
+                    {overdue
+                      ? "Overdue — target was "
+                      : reached
+                        ? "Reached before "
+                        : "Target: "}
+                    {formatDateLabel(item.targetDate)}
+                  </Text>
+                  {!overdue && !reached && days !== null && (
+                    <Text
+                      style={{ fontSize: 12, color: colors.mutedForeground }}
+                    >
+                      {days === 0 ? "Today!" : `${days}d left`}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Amounts row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={{ fontSize: 14, color: colors.foreground }}>
+                  Saved:{" "}
+                  <Text style={{ fontWeight: "700", color: colors.success }}>
+                    {formatCurrency(item.savedAmount)}
+                  </Text>
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.foreground }}>
+                  Target:{" "}
+                  <Text style={{ fontWeight: "700" }}>
+                    {formatCurrency(item.targetAmount)}
+                  </Text>
+                </Text>
               </View>
-              {remaining > 0 && (
+
+              <ProgressBar
+                progress={Math.min(pct, 1)}
+                color={reached ? colors.success : colors.primary}
+                height={10}
+              />
+
+              {/* Status row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: 8,
+                  alignItems: "center",
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  {reached ? (
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: colors.success,
+                        fontWeight: "600",
+                      }}
+                    >
+                      🎉 Goal reached!
+                    </Text>
+                  ) : (
+                    <>
+                      <Text
+                        style={{ fontSize: 13, color: colors.mutedForeground }}
+                      >
+                        Save {formatCurrency(Math.max(0, remaining))} more for
+                        this dream
+                      </Text>
+                      {monthly ? (
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: colors.primary,
+                            fontWeight: "600",
+                            marginTop: 2,
+                          }}
+                        >
+                          Save {monthly} in {forecast.targetMonth}
+                        </Text>
+                      ) : (
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: colors.mutedForeground,
+                            marginTop: 2,
+                          }}
+                        >
+                          {estimateMonths(item)}
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "700",
+                    color: reached ? colors.success : colors.primary,
+                    fontFamily: "Inter_700Bold",
+                  }}
+                >
+                  {Math.min(Math.round(pct * 100), 100)}%
+                </Text>
+              </View>
+
+              {!reached && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: colors.mutedForeground,
+                    marginTop: 8,
+                  }}
+                >
+                  {estimateMonths(item)}. Savings are reserved from available
+                  money.
+                </Text>
+              )}
+              {!reached &&
+                item.targetDate &&
+                !goalSavingsPlan(item, monthlySurplus).affordable && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: colors.expense,
+                      marginTop: 4,
+                    }}
+                  >
+                    This deadline needs more than your monthly surplus. Extend
+                    it or reduce expenses.
+                  </Text>
+                )}
+              {/* Quick add buttons */}
+              {!reached && (
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                  {Array.from(
+                    new Set([
+                      Math.min(1000, Math.max(0, remaining)),
+                      5000,
+                      10000,
+                    ]),
+                  )
+                    .filter((amt) => amt > 0)
+                    .map((amt) => (
+                      <Pressable
+                        key={amt}
+                        accessibilityLabel={`Save ${amt} toward ${item.name}`}
+                        onPress={() => addToSavings(item, amt)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: colors.secondary,
+                          alignItems: "center",
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: colors.primary,
+                          }}
+                        >
+                          +₹{amt >= 1000 ? `${amt / 1000}K` : amt}
+                        </Text>
+                      </Pressable>
+                    ))}
+                </View>
+              )}
+              {!reached && (
                 <Button
                   title="Add savings amount"
                   variant="secondary"
@@ -456,7 +632,7 @@ export default function GoalsScreen() {
                     setFundingGoal(item);
                     setFundingAmount("");
                   }}
-                  style={{ marginTop: 9 }}
+                  style={{ marginTop: 10 }}
                 />
               )}
             </Card>
@@ -476,7 +652,7 @@ export default function GoalsScreen() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: colors.gold,
+          backgroundColor: colors.primary,
           alignItems: "center",
           justifyContent: "center",
           shadowColor: colors.primary,
@@ -486,7 +662,7 @@ export default function GoalsScreen() {
           elevation: 8,
         }}
       >
-        <Feather name="plus" size={24} color={colors.foreground} />
+        <Feather name="plus" size={24} color="#fff" />
       </Pressable>
 
       <Modal
@@ -597,9 +773,6 @@ export default function GoalsScreen() {
               {editingId ? "Edit Goal" : "New Goal"}
             </Text>
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close goal form"
-              disabled={photoBusy}
               onPress={() => {
                 setShowModal(false);
                 reset();
@@ -721,45 +894,34 @@ export default function GoalsScreen() {
               </>
             )}
 
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 16,
-              }}
-            >
+            <View style={{ marginBottom: 12 }}>
               <GoalImage uri={imageUri} emoji={emoji} />
-              <View style={{ flex: 1 }}>
+              <Button
+                title="Choose goal image"
+                variant="secondary"
+                disabled={photoBusy}
+                onPress={async () => {
+                  setPhotoBusy(true);
+                  try {
+                    const uri = await pickProfilePhoto();
+                    if (uri) setImageUri(uri);
+                  } catch (e) {
+                    Alert.alert(
+                      "Goal image",
+                      e instanceof Error ? e.message : "Choose another image.",
+                    );
+                  } finally {
+                    setPhotoBusy(false);
+                  }
+                }}
+              />
+              {imageUri && (
                 <Button
-                  title={photoBusy ? "Opening photos…" : "Choose goal image"}
-                  disabled={photoBusy}
-                  variant="secondary"
-                  onPress={async () => {
-                    setPhotoBusy(true);
-                    try {
-                      const uri = await pickProfilePhoto();
-                      if (uri) setImageUri(uri);
-                    } catch (e) {
-                      Alert.alert(
-                        "Goal image",
-                        e instanceof Error
-                          ? e.message
-                          : "Choose another image.",
-                      );
-                    } finally {
-                      setPhotoBusy(false);
-                    }
-                  }}
+                  title="Remove goal image"
+                  variant="ghost"
+                  onPress={() => setImageUri(undefined)}
                 />
-                {imageUri && (
-                  <Button
-                    title="Remove goal image"
-                    variant="ghost"
-                    onPress={() => setImageUri(undefined)}
-                  />
-                )}
-              </View>
+              )}
             </View>
             <Input
               label="Goal Name"

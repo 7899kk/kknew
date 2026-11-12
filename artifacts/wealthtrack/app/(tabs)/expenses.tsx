@@ -1,9 +1,8 @@
-import { useLocalSearchParams } from "expo-router";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
 import { validMoney, validDate, localDate } from "@/utils/financeValidation";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -491,7 +490,7 @@ export default function ExpensesScreen() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: colors.gold,
+          backgroundColor: colors.primary,
           alignItems: "center",
           justifyContent: "center",
           shadowColor: colors.primary,
@@ -501,7 +500,7 @@ export default function ExpensesScreen() {
           elevation: 8,
         }}
       >
-        <Feather name="plus" size={24} color={colors.foreground} />
+        <Feather name="plus" size={24} color="#fff" />
       </Pressable>
 
       {/* Add / Edit Modal */}

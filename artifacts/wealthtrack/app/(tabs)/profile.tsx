@@ -157,6 +157,12 @@ function ProfileScreen({
         }}
         showsVerticalScrollIndicator={false}
       >
+        <Button
+          title="Loans"
+          icon="calendar"
+          onPress={() => router.push("/(tabs)/loans")}
+        />
+        <View style={{ height: 16 }} />
         {/* Profile Card */}
         <Card
           style={{

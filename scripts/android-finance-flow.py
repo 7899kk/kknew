@@ -43,7 +43,7 @@ def save(name):
 def match(root,label,edit=False):
     parents={child:parent for parent in root.iter() for child in parent}
     matches=[]
-    tabs={'Dashboard','Expenses','Activity','Dues','Goals','Split','Loans'}
+    tabs={'Dashboard','Expenses','Activity','Dues','Goals','Split','Profile'}
     nav_bounds=[]
     for candidate in root.iter('node'):
         if candidate.get('text') not in tabs:continue
@@ -90,11 +90,10 @@ def find(label,edit=False):
 def tap(label,edit=False):
     if not edit:
         label={'Home':'Dashboard'}.get(label,label)
+        if label=='Loans':
+            tap('Dashboard');return tap('Open monthly loan payments')
         if label=='Others':
-            tap('Open settings');return tap_menu('Reminders & more')
-        if label=='Profile':
-            tap('Open settings')
-            return tap({'Split':'Bill split','Dues':'Debts & credits'}.get(label,label)) if label not in {'Goals','Profile'} else tap_menu(label)
+            tap('Loans');return tap('Payment reminders')
         if label=='Add expense' and match(ui(),'Amount',True):return
     node=find(label,edit)
     x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
@@ -112,6 +111,7 @@ def tap_menu(label):
 
 def tap_filter(label):
     nodes=[n for n in match(ui(),label) if n.get('class')=='android.widget.Button' and int(re.findall(r'\d+',n.get('bounds'))[1])<1500]
+    nodes=list({n.get('bounds'):n for n in nodes}.values())
     assert len(nodes)==1, f'Expected one Activity filter {label}, got {len(nodes)}'
     x1,y1,x2,y2=map(int,re.findall(r'\d+',nodes[0].get('bounds')))
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.8)

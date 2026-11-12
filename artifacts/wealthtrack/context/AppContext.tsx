@@ -1118,7 +1118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       <View
         style={{
           flex: 1,
-          backgroundColor: "#EFEDE3",
+          backgroundColor: "#f4fdfd",
           alignItems: "center",
           justifyContent: "center",
         }}

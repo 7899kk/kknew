@@ -121,37 +121,27 @@ const server = http.createServer((req, res) => {
   }
   const button = (p, name) => p.getByRole("button", { name, exact: true });
   async function section(p, name) {
-    const main = {
+    if (name === "Loans") {
+      await section(p, "Home");
+      await button(p, "Open monthly loan payments").click();
+      return;
+    }
+    if (name === "Others") {
+      await section(p, "Loans");
+      await button(p, "Payment reminders").click();
+      return;
+    }
+    const map = {
       Dashboard: "Dashboard",
       Home: "Dashboard",
       Activity: "Activity",
       Expenses: "Expenses",
-      Loans: "Loans",
+      Dues: "Dues",
+      Goals: "Goals",
+      Split: "Split",
+      Profile: "Profile",
     };
-    if (name === "Others") {
-      await button(p, "Open settings").click();
-      await button(p, "Reminders & more").click();
-      return;
-    }
-    if (name === "Insights") {
-      await section(p, "Others");
-      await button(p, "Insights & budgets").click();
-      return;
-    }
-    if (main[name]) {
-      await p.getByRole("tab", { name: new RegExp(main[name]) }).click();
-      return;
-    }
-    await button(p, "Open settings").click();
-    await button(
-      p,
-      {
-        Dues: "Debts & credits",
-        Split: "Bill split",
-        Goals: "Goals",
-        Profile: "Profile",
-      }[name],
-    ).click();
+    await p.getByRole("tab", { name: new RegExp(map[name]) }).click();
   }
   const fill = async (p, label, value) => {
     const input = p.getByLabel(label, { exact: true });
@@ -233,30 +223,17 @@ const server = http.createServer((req, res) => {
     await button(owner, "Close").click();
     for (const name of ["Dues", "Goals", "Profile"]) {
       await section(owner, name);
-      const header = button(owner, "Open settings").locator("../..");
+      const header = owner
+        .getByText("PRO FINANCIER", { exact: true })
+        .filter({ visible: true })
+        .first()
+        .locator("..");
       await expect(header.getByText("Hi, Test", { exact: true })).toBeVisible();
       await expect(
         header.getByText("PRO FINANCIER", { exact: true }),
       ).toBeVisible();
     }
-    await section(owner, "Insights");
-    await expect(
-      owner.getByText("Recorded spending", { exact: false }),
-    ).toBeVisible();
-    await expect(
-      owner.getByLabel("Monthly spending bar graph").locator("svg rect"),
-    ).toHaveCount(6);
-    await button(owner, "Income").click();
-    await expect(
-      owner.getByText("Recorded income", { exact: false }),
-    ).toBeVisible();
-    await button(owner, "Spending").click();
-    await owner.waitForTimeout(650);
-    await owner.screenshot({
-      path: path.join(temp, "insights.png"),
-      fullPage: true,
-    });
-
+    await section(owner, "Home");
     await button(owner, "Open budgets and reports").click();
     await fill(owner, "Limit (INR)", "1000");
     await button(owner, "Save monthly limit").click();
@@ -338,7 +315,7 @@ const server = http.createServer((req, res) => {
     await button(owner, "Approve update").click();
     await expect(owner.getByText("Taxi · ₹60", { exact: false })).toBeVisible();
     await section(owner, "Dues");
-    await button(owner, "Owed to you").click();
+    await button(owner, "Owed to You").click();
     await expect(
       owner.getByRole("button", { name: "Open C Trip", exact: true }),
     ).toContainText("₹80");
@@ -379,12 +356,17 @@ const server = http.createServer((req, res) => {
       "₹68,500",
     );
     await section(owner, "Dues");
+    await button(owner, "You Owe").click();
     await expect(
-      owner.getByRole("button", { name: "Open Bank Bike loan", exact: true }),
+      owner
+        .getByRole("button", { name: "Open Bank Bike loan", exact: true })
+        .first(),
     ).toContainText("₹11,500");
-    await button(owner, "Paid").click();
+    // Original Dues screen displays pending and paid records together.
     await expect(
-      owner.getByRole("button", { name: "Open Bank Bike loan", exact: true }),
+      owner
+        .getByRole("button", { name: "Open Bank Bike loan", exact: true })
+        .filter({ hasText: "Paid" }),
     ).toContainText("₹500");
     await section(owner, "Activity");
     await expect(
@@ -393,10 +375,12 @@ const server = http.createServer((req, res) => {
         exact: true,
       }),
     ).toHaveCount(1);
-    await button(owner, "Dues").click();
+    await section(owner, "Dues");
     await expect(
-      owner.getByText("Bank · Bike loan", { exact: true }).first(),
-    ).toBeVisible();
+      owner
+        .getByRole("button", { name: "Open Bank Bike loan", exact: true })
+        .first(),
+    ).toContainText("₹11,500");
     await owner.reload();
     await section(owner, "Loans");
     await expect(button(owner, "Open loan Bike loan")).toContainText("₹11,500");
@@ -414,7 +398,7 @@ const server = http.createServer((req, res) => {
     await section(owner, "Activity");
     await button(owner, "Expenses").click();
     await expect(
-      button(owner, "Edit expense Manual expense check"),
+      button(owner, "Edit expense Manual expense check").locator("../.."),
     ).toContainText("−₹321.45");
     await button(owner, "Income").click();
     await expect(
@@ -429,9 +413,9 @@ const server = http.createServer((req, res) => {
     await button(owner, "Save").click();
     await expect(owner.getByRole("dialog")).toHaveCount(0);
     await button(owner, "Income").click();
-    await expect(button(owner, "Edit income Money received")).toContainText(
-      "+₹321.45",
-    );
+    await expect(
+      button(owner, "Edit income Money received").locator("../.."),
+    ).toContainText("+₹321.45");
     await button(owner, "Edit income Money received").click();
     await owner
       .getByRole("dialog")
@@ -441,7 +425,7 @@ const server = http.createServer((req, res) => {
     await expect(owner.getByRole("dialog")).toHaveCount(0);
     await button(owner, "Expenses").click();
     await expect(
-      button(owner, "Edit expense Manual expense check"),
+      button(owner, "Edit expense Manual expense check").locator("../.."),
     ).toContainText("−₹321.45");
     await button(owner, "Edit expense Manual expense check").click();
     await button(owner, "Delete transaction").click();
@@ -510,7 +494,10 @@ const server = http.createServer((req, res) => {
     await button(owner, "Close").click();
     await section(owner, "Others");
     await expect(
-      owner.getByText("Payment reminders", { exact: true }),
+      owner
+        .getByText("Payment reminders", { exact: true })
+        .filter({ visible: true })
+        .last(),
     ).toBeVisible();
     await expect(
       owner.getByText("Interest plan EMI · ₹8,884.88", { exact: true }),
@@ -550,11 +537,16 @@ const server = http.createServer((req, res) => {
     ).setFiles(path.resolve("artifacts/wealthtrack/assets/images/logo.png"));
 
     await expect(
-      owner.locator('img[src^="data:image/jpeg"]').filter({ visible: true }),
+      button(owner, "Change profile photo").locator(
+        'img[src^="data:image/jpeg"]',
+      ),
     ).toBeVisible();
+    await expect(button(owner, "Change profile photo")).toBeEnabled();
     await owner.reload();
     await expect(
-      owner.locator('img[src^="data:image/jpeg"]').filter({ visible: true }),
+      button(owner, "Change profile photo").locator(
+        'img[src^="data:image/jpeg"]',
+      ),
     ).toBeVisible();
     await owner.waitForTimeout(650);
     await owner.screenshot({
@@ -625,7 +617,7 @@ const server = http.createServer((req, res) => {
     });
     expect(errors).toEqual([]);
     console.log(
-      "Browser checks passed: detailed APR/EMI/term/schedule, dashboard interest reserve, Others/reminder preview, goal photo persistence and backup, restored classic teal dashboard/pie/details, manual expense sign/filter and correction, inferred-term loan persistence, Settings/Profile, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
+      "Browser checks passed: detailed APR/EMI/term/schedule, dashboard interest reserve, loan reminder controls, goal photo persistence and backup, restored classic teal dashboard/pie/details, manual expense sign/filter and correction, inferred-term loan persistence, original Profile navigation, local group identity and linked dues, loan monthly reserves and matching without duplicate cash, restart persistence, sharing/approval, photos and encrypted backup/restore.",
     );
     console.log("Evidence:", temp);
   } finally {

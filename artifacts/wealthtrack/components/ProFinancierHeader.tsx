@@ -1,15 +1,6 @@
 import React from "react";
-import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
-import {
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
@@ -75,7 +66,7 @@ export function ProFinancierHeader({
             <Text
               style={{
                 fontSize: 10,
-                color: colors.primaryForeground + "99",
+                color: "#ffffff99",
                 fontWeight: "600",
                 textTransform: "uppercase",
                 letterSpacing: 1.8,
@@ -90,7 +81,7 @@ export function ProFinancierHeader({
               style={{
                 fontSize: compact ? 16 : 19,
                 fontWeight: "700",
-                color: colors.primaryForeground,
+                color: "#ffffff",
                 fontFamily: "Inter_700Bold",
               }}
               numberOfLines={1}
@@ -101,7 +92,7 @@ export function ProFinancierHeader({
           )}
           {(title || subtitle) && (
             <Text
-              style={{ fontSize: 12, color: colors.primaryForeground + "aa" }}
+              style={{ fontSize: 12, color: "#ffffffaa" }}
               numberOfLines={1}
             >
               {title?.startsWith("Hello") ? "Home" : title || subtitle}
@@ -109,35 +100,7 @@ export function ProFinancierHeader({
           )}
         </View>
       </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        {rightSlot}
-        {title === "Settings" ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={() => router.back()}
-          >
-            <Feather
-              name="arrow-left"
-              size={22}
-              color={colors.primaryForeground}
-            />
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-            onPress={() => router.push("/settings")}
-            style={{ padding: 8 }}
-          >
-            <Feather
-              name="settings"
-              size={21}
-              color={colors.primaryForeground}
-            />
-          </Pressable>
-        )}
-      </View>
+      {rightSlot && <View>{rightSlot}</View>}
     </View>
   );
 }

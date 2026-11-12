@@ -18,7 +18,7 @@ export default function TabLayout() {
     { name: "debts", title: "Dues", icon: "repeat" },
     { name: "goals", title: "Goals", icon: "target" },
     { name: "billsplit", title: "Split", icon: "users" },
-    { name: "loans", title: "Loans", icon: "calendar" },
+    { name: "profile", title: "Profile", icon: "user" },
   ];
   return (
     <Tabs
@@ -54,7 +54,7 @@ export default function TabLayout() {
           }}
         />
       ))}
-      {["profile", "others", "insights"].map((name) => (
+      {["loans", "others", "insights"].map((name) => (
         <Tabs.Screen key={name} name={name} options={{ href: null }} />
       ))}
     </Tabs>

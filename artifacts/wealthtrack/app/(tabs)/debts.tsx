@@ -1,295 +1,694 @@
-import React, { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useApp, type DebtEntry } from "@/context/AppContext";
-import { useColors } from "@/hooks/useColors";
+import type { Obligation } from "@/utils/obligations";
 import { ProFinancierHeader } from "@/components/ProFinancierHeader";
+import { validMoney, validDate, localDate } from "@/utils/financeValidation";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import {
+  Alert,
+  Animated,
+  FlatList,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DebtEntry, useApp } from "@/context/AppContext";
+import { useColors } from "@/hooks/useColors";
+import {
+  Badge,
   Button,
   Card,
+  EmptyState,
+  formatCurrency,
+  formatCurrencyFull,
   Input,
   PillSelector,
-  formatCurrencyFull,
+  SectionHeader,
+  StatCard,
 } from "@/components/UI";
-import { validMoney, validDate } from "@/utils/financeValidation";
-import { confirmAction } from "@/utils/dialogs";
-import type { Obligation } from "@/utils/obligations";
-import { localGroupMember } from "@/utils/obligations";
-export default function DebtsScreen() {
-  const app = useApp(),
-    c = useColors(),
-    insets = useSafeAreaInsets();
-  const [tab, setTab] = useState("You owe"),
-    [status, setStatus] = useState("Open"),
-    [form, setForm] = useState(false),
-    [editing, setEditing] = useState<string | null>(null),
-    [name, setName] = useState(""),
-    [amount, setAmount] = useState(""),
-    [due, setDue] = useState(""),
-    [type, setType] = useState("You owe"),
-    [entryStatus, setEntryStatus] = useState("Pending"),
-    [error, setError] = useState("");
-  const rows = app.obligations.filter(
-    (d) =>
-      (tab === "You owe" ? d.type === "debit" : d.type === "credit") &&
-      (status === "Open" ? d.status === "Pending" : d.status === "Paid"),
+import { PieChart } from "@/components/PieChart";
+
+type DebtType = "debit" | "credit";
+
+function AnimatedNumber({ value, color }: { value: number; color: string }) {
+  const colors = useColors();
+  const animVal = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    animVal.setValue(0);
+    const listener = animVal.addListener(({ value: v }) => setDisplay(v));
+    Animated.timing(animVal, {
+      toValue: value,
+      duration: 800,
+      useNativeDriver: false,
+    }).start();
+    return () => animVal.removeListener(listener);
+  }, [value]);
+
+  return (
+    <Text
+      style={{
+        fontSize: 22,
+        fontWeight: "700",
+        color,
+        fontFamily: "Inter_700Bold",
+      }}
+    >
+      {formatCurrency(display)}
+    </Text>
   );
-  const open = (d?: DebtEntry) => {
-    setEditing(d?.id || null);
-    setName(d?.name || "");
-    setAmount(d ? String(d.amount) : "");
-    setDue(d?.dueDate || "");
-    setType(d?.type === "credit" ? "Owed to you" : d ? "You owe" : tab);
-    setEntryStatus(d?.status || "Pending");
-    setError("");
-    setForm(true);
-  };
-  const view = (d: Obligation) => {
-    if (d.sourceKind)
+}
+
+export default function DebtsScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const app = useApp();
+  const { addDebt, updateDebt, deleteDebt } = app;
+  const debts = app.obligations;
+  const openSource = (debt: Obligation) => {
+    if (debt.sourceKind === "loan")
       router.push({
-        pathname:
-          d.sourceKind === "loan" ? "/(tabs)/loans" : "/(tabs)/billsplit",
-        params:
-          d.sourceKind === "loan"
-            ? { loanId: d.sourceId }
-            : { groupId: d.sourceId },
+        pathname: "/(tabs)/loans",
+        params: { loanId: debt.sourceId },
       } as Href);
-    else open(d);
+    else if (debt.sourceKind === "split")
+      router.push({
+        pathname: "/(tabs)/billsplit",
+        params: { groupId: debt.sourceId },
+      } as Href);
   };
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"You Owe" | "Owed to You">("You Owe");
+
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [interest, setInterest] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [status, setStatus] = useState<"Paid" | "Pending">("Pending");
+  const [type, setType] = useState<DebtType>("debit");
+
+  // Hero entrance animation
+  const heroAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(heroAnim, {
+      toValue: 1,
+      tension: 60,
+      friction: 9,
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  }, []);
+
+  const reset = () => {
+    setName("");
+    setAmount("");
+    setInterest("");
+    setDueDate("");
+    setStatus("Pending");
+    setType(tab === "You Owe" ? "debit" : "credit");
+    setEditingId(null);
+  };
+
+  const openAdd = () => {
+    reset();
+    setType(tab === "You Owe" ? "debit" : "credit");
+    setShowModal(true);
+  };
+  const openEdit = (debt: Obligation) => {
+    if (debt.sourceKind) {
+      openSource(debt);
+      return;
+    }
+    setName(debt.name);
+    setAmount(debt.amount.toString());
+    setInterest(debt.interest?.toString() || "");
+    setDueDate(debt.dueDate || "");
+    setStatus(debt.status);
+    setType(debt.type);
+    setEditingId(debt.id);
+    setShowModal(true);
+  };
+
   const save = () => {
-    if (!name.trim() || !validMoney(amount) || !validDate(due, true)) {
-      setError("Enter a name, positive amount and valid due date.");
+    if (
+      !name.trim() ||
+      !validMoney(amount) ||
+      !validMoney(interest, true, true) ||
+      !validDate(dueDate, true)
+    ) {
+      Alert.alert(
+        "Check debt",
+        "Enter a name, positive amount, non-negative interest and valid date.",
+      );
       return;
     }
     const data = {
       name: name.trim(),
-      amount: Number(amount),
-      dueDate: due || undefined,
-      type: type === "You owe" ? ("debit" as const) : ("credit" as const),
-      status: entryStatus as "Pending" | "Paid",
+      amount: parseFloat(amount),
+      interest: interest ? parseFloat(interest) : undefined,
+      dueDate: dueDate || undefined,
+      status,
+      type,
     };
-    editing ? app.updateDebt(editing, data) : app.addDebt(data);
-    setForm(false);
+    if (editingId) updateDebt(editingId, data);
+    else addDebt(data);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowModal(false);
+    reset();
   };
-  const unlinked = app.billGroups.filter(
-    (g) => !localGroupMember(g, app.groupMemberships, app.profile),
-  ).length;
+
+  const confirmDelete = (id: string) => {
+    Alert.alert("Delete Entry", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          deleteDebt(id);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        },
+      },
+    ]);
+  };
+
+  const debits = debts.filter((d) => d.type === "debit");
+  const credits = debts.filter((d) => d.type === "credit");
+  const currentList = tab === "You Owe" ? debits : credits;
+
+  const totalDebt = debits
+    .filter((d) => d.status === "Pending")
+    .reduce((s, d) => s + d.amount, 0);
+  const totalCredit = credits
+    .filter((d) => d.status === "Pending")
+    .reduce((s, d) => s + d.amount, 0);
+  const paidDebt = debits
+    .filter((d) => d.status === "Paid")
+    .reduce((s, d) => s + d.amount, 0);
+  const paidCredit = credits
+    .filter((d) => d.status === "Paid")
+    .reduce((s, d) => s + d.amount, 0);
+  const netBalance = totalCredit - totalDebt;
+
+  const pieSlices = useMemo(() => {
+    const slices = [];
+    if (totalDebt > 0)
+      slices.push({
+        value: totalDebt,
+        color: colors.expense,
+        label: "You Owe (Pending)",
+      });
+    if (totalCredit > 0)
+      slices.push({
+        value: totalCredit,
+        color: colors.success,
+        label: "Owed to You",
+      });
+    if (paidDebt > 0)
+      slices.push({
+        value: paidDebt,
+        color: colors.mutedForeground + "80",
+        label: "You Paid",
+      });
+    if (paidCredit > 0)
+      slices.push({
+        value: paidCredit,
+        color: colors.primary + "60",
+        label: "Received",
+      });
+    return slices;
+  }, [totalDebt, totalCredit, paidDebt, paidCredit, colors]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ProFinancierHeader title="Debts & credits" />
-      <ScrollView
+      <FlatList
+        data={currentList}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{
-          padding: 18,
-          paddingBottom: insets.bottom + 110,
-          gap: 13,
+          padding: 16,
+          paddingBottom: insets.bottom + 100 + (Platform.OS === "web" ? 34 : 0),
         }}
-      >
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          {[
-            { label: "You owe", amount: app.totalDebt },
-            { label: "Owed to you", amount: app.totalCredit },
-          ].map((m) => (
-            <Card key={m.label} style={{ flex: 1 }}>
-              <Text style={{ color: c.mutedForeground, fontSize: 12 }}>
-                {m.label}
-              </Text>
-              <Text
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={() => (
+          <>
+            {/* Animated 3D-style hero summary */}
+            <Animated.View
+              style={{
+                opacity: heroAnim,
+                transform: [{ scale: heroAnim }],
+                marginBottom: 16,
+              }}
+            >
+              <View
                 style={{
-                  color: c.foreground,
-                  fontSize: 25,
-                  fontFamily: "Inter_700Bold",
-                  marginTop: 10,
+                  borderRadius: 24,
+                  overflow: "hidden",
+                  backgroundColor:
+                    netBalance >= 0 ? colors.success : colors.expense,
+                  shadowColor:
+                    netBalance >= 0 ? colors.success : colors.expense,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 18,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 10,
                 }}
               >
-                {formatCurrencyFull(m.amount)}
-              </Text>
-            </Card>
-          ))}
-        </View>
-        <PillSelector
-          options={["You owe", "Owed to you"]}
-          value={tab}
-          onChange={setTab}
-        />
-        <PillSelector
-          options={["Open", "Paid"]}
-          value={status}
-          onChange={setStatus}
-        />
-        <Button title="Add entry" icon="plus" onPress={() => open()} />
-        {unlinked > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/(tabs)/billsplit" as Href)}
-          >
-            <Card>
-              <Text style={{ color: c.mutedForeground, fontSize: 13 }}>
-                Choose your name in {unlinked} bill{" "}
-                {unlinked === 1 ? "group" : "groups"} to link your share →
-              </Text>
-            </Card>
-          </Pressable>
+                {/* Top shimmer stripe */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 3,
+                    backgroundColor: "#ffffff30",
+                  }}
+                />
+                <View style={{ padding: 22 }}>
+                  <Text
+                    style={{
+                      color: "#ffffff99",
+                      fontSize: 12,
+                      fontWeight: "600",
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Net Balance
+                  </Text>
+                  <AnimatedNumber value={netBalance} color="#ffffff" />
+                  <Text
+                    style={{ color: "#ffffff80", fontSize: 12, marginTop: 4 }}
+                  >
+                    {netBalance >= 0
+                      ? "People owe you more — you're net positive"
+                      : "You owe more — you're net negative"}
+                  </Text>
+                </View>
+
+                {/* Bottom stats row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    backgroundColor: "#00000015",
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  {[
+                    {
+                      label: "You Owe",
+                      val: totalDebt,
+                      icon: "arrow-up-right",
+                    },
+                    {
+                      label: "Owed to You",
+                      val: totalCredit,
+                      icon: "arrow-down-left",
+                    },
+                  ].map((item) => (
+                    <View
+                      key={item.label}
+                      style={{ flex: 1, alignItems: "center" }}
+                    >
+                      <Feather
+                        name={item.icon as any}
+                        size={14}
+                        color="#ffffff80"
+                      />
+                      <Text
+                        style={{
+                          color: "#ffffff60",
+                          fontSize: 11,
+                          marginTop: 2,
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontWeight: "700",
+                          fontSize: 14,
+                        }}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                      >
+                        {formatCurrency(item.val)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* Pie Chart */}
+            {pieSlices.length > 0 && (
+              <Card style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: colors.foreground,
+                    marginBottom: 16,
+                    fontFamily: "Inter_700Bold",
+                  }}
+                >
+                  Debt Breakdown
+                </Text>
+                <PieChart
+                  slices={pieSlices}
+                  thickness={40}
+                  centerLabel="Total"
+                  centerValue={totalDebt + totalCredit + paidDebt + paidCredit}
+                />
+              </Card>
+            )}
+
+            {/* Quick stats */}
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+              <StatCard
+                label="You Owe"
+                amount={totalDebt}
+                color={colors.debt}
+                icon="arrow-up-right"
+              />
+              <StatCard
+                label="Owed to You"
+                amount={totalCredit}
+                color={colors.success}
+                icon="arrow-down-left"
+              />
+            </View>
+
+            {/* Tab toggle */}
+            <View
+              style={{
+                flexDirection: "row",
+                backgroundColor: colors.secondary,
+                borderRadius: 12,
+                padding: 4,
+                marginBottom: 16,
+              }}
+            >
+              {(["You Owe", "Owed to You"] as const).map((t) => (
+                <Pressable
+                  key={t}
+                  accessibilityRole="button"
+                  accessibilityLabel={t}
+                  accessibilityState={{ selected: tab === t }}
+                  onPress={() => setTab(t)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    backgroundColor: tab === t ? colors.card : "transparent",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color:
+                        tab === t ? colors.foreground : colors.mutedForeground,
+                    }}
+                  >
+                    {t}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <SectionHeader
+              title={tab === "You Owe" ? "Your Debts" : "Money Receivable"}
+            />
+          </>
         )}
-        {rows.map((d) => (
+        ListEmptyComponent={() => (
+          <EmptyState
+            icon="alert-circle"
+            title={
+              tab === "You Owe" ? "No debts tracked" : "No credits tracked"
+            }
+            subtitle="Tap + to add an entry"
+          />
+        )}
+        renderItem={({ item }) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open ${d.name} ${d.sourceLabel || "entry"}`}
-            onPress={() => view(d)}
-            key={d.id}
+            accessibilityLabel={`Open ${item.name} ${item.sourceLabel || ""}`}
+            onPress={() => openEdit(item)}
+            onLongPress={() =>
+              item.sourceKind ? openSource(item) : confirmDelete(item.id)
+            }
           >
-            <Card>
+            <Card style={{ marginBottom: 10 }}>
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
               >
                 <View
                   style={{
-                    width: 39,
-                    height: 39,
-                    borderRadius: 12,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
                     backgroundColor:
-                      d.sourceKind === "loan" ? c.goldLight : c.successLight,
+                      item.type === "debit" ? "#fee2e2" : colors.successLight,
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
                   <Feather
                     name={
-                      d.sourceKind === "split"
-                        ? "users"
-                        : d.sourceKind === "loan"
-                          ? "credit-card"
-                          : "repeat"
+                      item.type === "debit"
+                        ? "arrow-up-right"
+                        : "arrow-down-left"
                     }
                     size={18}
-                    color={c.foreground}
+                    color={
+                      item.type === "debit" ? colors.expense : colors.success
+                    }
                   />
                 </View>
-                <View style={{ flex: 1, gap: 5 }}>
+                <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      color: c.foreground,
-                      fontFamily: "Inter_600SemiBold",
                       fontSize: 15,
+                      fontWeight: "600",
+                      color: colors.foreground,
                     }}
                   >
-                    {d.name}
+                    {item.name}
                   </Text>
-                  <Text style={{ color: c.mutedForeground, fontSize: 11 }}>
-                    {d.sourceLabel || "Personal entry"}
-                    {d.dueDate
-                      ? ` · ${d.status === "Paid" ? "Paid" : "Due"} ${d.dueDate}`
-                      : ""}
-                  </Text>
+                  {item.sourceLabel && (
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: 12,
+                        marginTop: 4,
+                      }}
+                    >
+                      {item.sourceLabel}
+                    </Text>
+                  )}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 6,
+                      marginTop: 3,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {item.dueDate && (
+                      <Text
+                        style={{ fontSize: 12, color: colors.mutedForeground }}
+                      >
+                        Due: {item.dueDate}
+                      </Text>
+                    )}
+                    {item.interest ? (
+                      <Text style={{ fontSize: 12, color: colors.warning }}>
+                        {item.interest}% interest
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
-                <View style={{ alignItems: "flex-end", gap: 5 }}>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
                   <Text
                     style={{
-                      color: d.type === "credit" ? c.income : c.expense,
-                      fontFamily: "Inter_700Bold",
-                      fontSize: 17,
+                      fontSize: 16,
+                      fontWeight: "700",
+                      color:
+                        item.type === "debit" ? colors.expense : colors.success,
                     }}
                   >
-                    {formatCurrencyFull(d.amount)}
+                    {formatCurrencyFull(item.amount)}
                   </Text>
-                  <Text style={{ fontSize: 10, color: c.mutedForeground }}>
-                    {d.status}
-                  </Text>
+                  <Badge
+                    label={item.status}
+                    color={
+                      item.status === "Paid" ? colors.success : colors.warning
+                    }
+                    bg={
+                      item.status === "Paid"
+                        ? colors.successLight
+                        : colors.warningLight
+                    }
+                  />
                 </View>
               </View>
             </Card>
           </Pressable>
-        ))}
-        {!rows.length && (
-          <Text
-            style={{
-              color: c.mutedForeground,
-              textAlign: "center",
-              padding: 25,
-            }}
-          >
-            No {status === "Open" ? "open" : "paid"} entries
-          </Text>
         )}
-      </ScrollView>
-      <Modal
-        visible={form}
-        animationType="slide"
-        onRequestClose={() => setForm(false)}
+      />
+
+      {/* FAB */}
+      <Pressable
+        onPress={openAdd}
+        style={{
+          position: "absolute",
+          bottom: insets.bottom + 90 + (Platform.OS === "web" ? 34 : 0),
+          right: 16,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: colors.primary,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: colors.primary,
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
+        }}
       >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
+        <Feather name="plus" size={24} color="#fff" />
+      </Pressable>
+
+      {/* Modal */}
+      <Modal
+        visible={showModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.background,
             padding: 24,
-            paddingTop: insets.top + 24,
-            paddingBottom: insets.bottom + 30,
-            flexGrow: 1,
-            gap: 13,
-            backgroundColor: c.background,
+            paddingTop: Platform.OS === "ios" ? 40 : 24,
           }}
         >
-          <Text
+          <View
             style={{
-              color: c.foreground,
-              fontFamily: "Inter_700Bold",
-              fontSize: 24,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 24,
             }}
           >
-            {editing ? "Edit entry" : "Add entry"}
-          </Text>
-          <PillSelector
-            options={["You owe", "Owed to you"]}
-            value={type}
-            onChange={setType}
-          />
-          <Input
-            label="Person or institution"
-            value={name}
-            onChangeText={setName}
-          />
-          <Input
-            label="Amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            prefix="₹"
-          />
-          <Input
-            label="Due date (optional)"
-            value={due}
-            onChangeText={setDue}
-            placeholder="YYYY-MM-DD"
-          />
-          <PillSelector
-            options={["Pending", "Paid"]}
-            value={entryStatus}
-            onChange={setEntryStatus}
-          />
-          {!!error && <Text style={{ color: c.destructive }}>{error}</Text>}
-          <Button title="Save entry" onPress={save} />
-          {editing && (
-            <Button
-              title="Delete entry"
-              variant="ghost"
-              onPress={() =>
-                confirmAction(
-                  "Delete entry?",
-                  "Remove this personal entry?",
-                  () => {
-                    app.deleteDebt(editing);
-                    setForm(false);
-                  },
-                )
-              }
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "700",
+                color: colors.foreground,
+                fontFamily: "Inter_700Bold",
+              }}
+            >
+              {editingId ? "Edit Entry" : "Add Entry"}
+            </Text>
+            <Pressable
+              onPress={() => {
+                setShowModal(false);
+                reset();
+              }}
+            >
+              <Feather name="x" size={24} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: colors.mutedForeground,
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Type
+            </Text>
+            <PillSelector
+              options={["debit", "credit"] as DebtType[]}
+              value={type}
+              onChange={setType}
             />
-          )}
-          <Button
-            title="Cancel"
-            variant="ghost"
-            onPress={() => setForm(false)}
-          />
-        </ScrollView>
+            <View style={{ height: 16 }} />
+            <Input
+              label={type === "debit" ? "Lender Name" : "Borrower Name"}
+              value={name}
+              onChangeText={setName}
+              placeholder="Person or institution"
+            />
+            <Input
+              label="Amount"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              prefix="₹"
+            />
+            <Input
+              label="Interest % (optional)"
+              value={interest}
+              onChangeText={setInterest}
+              placeholder="e.g. 12"
+              keyboardType="decimal-pad"
+            />
+            <Input
+              label="Due Date (optional)"
+              value={dueDate}
+              onChangeText={setDueDate}
+              placeholder="YYYY-MM-DD"
+            />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: colors.mutedForeground,
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Status
+            </Text>
+            <PillSelector
+              options={["Pending", "Paid"] as ("Pending" | "Paid")[]}
+              value={status}
+              onChange={setStatus}
+            />
+            <View style={{ height: 24 }} />
+            <Button
+              title={editingId ? "Save Changes" : "Add Entry"}
+              onPress={save}
+              disabled={!name.trim() || !amount}
+            />
+          </ScrollView>
+        </View>
       </Modal>
     </View>
   );

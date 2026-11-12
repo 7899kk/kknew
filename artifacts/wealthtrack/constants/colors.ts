@@ -38,8 +38,8 @@ const colors = {
     info: "#0077b6",
     infoLight: "#caf0f8",
 
-    incomeLight: "#fef8e1",
-    income: "#b4840b",
+    incomeLight: "#d4f4f4",
+    income: "#14a085",
     expense: "#e53e3e",
     investment: "#0d7377",
     savings: "#d4a017",
@@ -95,8 +95,8 @@ const colors = {
     info: "#60a5fa",
     infoLight: "#1a2f40",
 
-    incomeLight: "#3f3517",
-    income: "#e9bf49",
+    incomeLight: "#0d3f3f",
+    income: "#4ecdc4",
     expense: "#f87171",
     investment: "#4ecdc4",
     savings: "#f0c040",

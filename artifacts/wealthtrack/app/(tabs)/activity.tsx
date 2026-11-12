@@ -273,7 +273,7 @@ export default function ActivityScreen() {
               }}
             />
             <PillSelector
-              options={["All", "Expenses", "Income", "Dues"]}
+              options={["All", "Expenses", "Income"]}
               value={filter}
               onChange={setFilter}
             />
@@ -348,96 +348,78 @@ export default function ActivityScreen() {
           )
         }
         renderItem={({ item: e }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Edit ${e.kind} ${e.kind === "income" ? e.name || "Money received" : e.needsReason ? "Money sent" : e.notes || e.category}`}
-            onPress={() =>
-              setEditing({
-                id: e.id,
-                kind: e.kind,
-                originalKind: e.kind,
-                amount: String(e.amount),
-                notes:
-                  e.kind === "expense" && e.needsReason ? "" : e.notes || "",
-                date: e.date,
-                name: e.kind === "income" ? e.name : undefined,
-                category: e.category,
-              })
-            }
-          >
-            <Card style={{ padding: 14 }}>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <View
-                  style={{
-                    height: 36,
-                    width: 36,
-                    borderRadius: 11,
-                    backgroundColor:
-                      e.kind === "income"
-                        ? colors.incomeLight
-                        : colors.goldLight,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Feather
-                    name={
-                      e.kind === "income" ? "arrow-down-left" : "arrow-up-right"
-                    }
-                    size={17}
-                    color={colors.foreground}
-                  />
-                </View>
-                <View style={{ flex: 1, gap: 5 }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      color: colors.foreground,
-                      fontFamily: "Inter_600SemiBold",
-                      fontSize: 14,
-                    }}
-                  >
-                    {e.kind === "income"
-                      ? e.name || "Money received"
-                      : e.needsReason
-                        ? "Money sent"
-                        : e.notes || e.category}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    style={{ color: colors.mutedForeground, fontSize: 10 }}
-                  >
-                    {e.kind === "expense" ? "Expense" : "Income"} ·{" "}
-                    {e.category || "Uncategorized"} ·{" "}
-                    {e.source?.startsWith("Bank SMS")
-                      ? "Bank SMS"
-                      : e.source || "Manual"}
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    color: e.kind === "income" ? colors.income : colors.expense,
-                    fontFamily: "Inter_700Bold",
-                    fontSize: 15,
-                  }}
-                >
-                  {e.kind === "income" ? "+" : "−"}
-                  {formatCurrencyFull(e.amount)}
-                </Text>
-              </View>
-              <Text
-                style={{
-                  color: colors.mutedForeground,
-                  fontSize: 10,
-                  marginTop: 9,
-                }}
-              >
-                {transactionDateLabel(e.date, e.time)}
-              </Text>
-            </Card>
-          </Pressable>
+          <Card key={`${e.kind}-${e.id}`}>
+            <Text
+              style={{
+                color: e.kind === "income" ? colors.success : colors.expense,
+                fontSize: 20,
+                fontWeight: "700",
+              }}
+            >
+              {e.kind === "income" ? "+" : "−"}
+              {formatCurrencyFull(e.amount)}
+            </Text>
+            <Text
+              style={{ color: colors.foreground, fontSize: 16, marginTop: 6 }}
+            >
+              {e.kind === "income"
+                ? e.name || "Money received"
+                : (e as Expense).needsReason
+                  ? "Payment reason needed"
+                  : e.notes || (e as Expense).category}
+            </Text>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: 14,
+                marginVertical: 8,
+              }}
+            >
+              {e.kind === "income" ? "Income" : "Expense"} ·{" "}
+              {e.category || "Uncategorized"} ·
+              {transactionDateLabel(e.date, e.time)} ·{" "}
+              {e.source
+                ? e.source.startsWith("sms:") || e.source.startsWith("Bank SMS")
+                  ? "Bank SMS"
+                  : sourceNames[e.source] || "Payment alert"
+                : "Manual entry"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Button
+                accessibilityLabel={`Edit ${e.kind} ${e.kind === "income" ? e.name || "Money received" : e.needsReason ? "Money sent" : e.notes || e.category}`}
+                title={
+                  e.kind === "income"
+                    ? "Edit income"
+                    : (e as Expense).needsReason
+                      ? "Add reason"
+                      : "Edit"
+                }
+                variant="secondary"
+                style={{ flex: 1 }}
+                onPress={() =>
+                  setEditing({
+                    id: e.id,
+                    kind: e.kind,
+                    originalKind: e.kind,
+                    amount: String(e.amount),
+                    notes:
+                      e.kind === "expense" && (e as Expense).needsReason
+                        ? ""
+                        : e.notes || "",
+                    date: e.date,
+                    name: e.kind === "income" ? e.name : undefined,
+                    category: e.category,
+                  })
+                }
+              />
+              <Button
+                title="Delete"
+                variant="ghost"
+                style={{ flex: 1 }}
+                onPress={() => remove(e.id, e.kind)}
+              />
+            </View>
+          </Card>
         )}
       />
       <Modal
