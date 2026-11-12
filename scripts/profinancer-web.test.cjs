@@ -169,6 +169,18 @@ const server = http.createServer((req, res) => {
         exact: true,
       }),
     ).toBeVisible();
+    await button(owner, "Year").click();
+    await expect(
+      owner.getByText("Recorded cash flow · last 12 months", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      owner.getByLabel("Budget balance graph").locator("svg path"),
+    ).toHaveCount(2);
+    await button(owner, "Week").click();
+    await expect(
+      owner.getByText("Recorded cash flow · last 12 months", { exact: true }),
+    ).toHaveCount(0);
+    await button(owner, "Month").click();
     await owner.screenshot({
       path: path.join(temp, "home.png"),
       fullPage: true,
@@ -214,6 +226,22 @@ const server = http.createServer((req, res) => {
       ).toBeVisible();
     }
     await section(owner, "Insights");
+    await expect(
+      owner.getByText("Recorded spending", { exact: false }),
+    ).toBeVisible();
+    await expect(
+      owner.getByLabel("Monthly spending bar graph").locator("svg rect"),
+    ).toHaveCount(6);
+    await button(owner, "Income").click();
+    await expect(
+      owner.getByText("Recorded income", { exact: false }),
+    ).toBeVisible();
+    await button(owner, "Spending").click();
+    await owner.screenshot({
+      path: path.join(temp, "insights.png"),
+      fullPage: true,
+    });
+
     await button(owner, "Open budgets and reports").click();
     await fill(owner, "Limit (INR)", "1000");
     await button(owner, "Save monthly limit").click();
